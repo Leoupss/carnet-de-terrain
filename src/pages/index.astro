@@ -1,9 +1,7 @@
 ---
 import Base from '../layouts/Base.astro'
-import Globe from '../components/Globe.astro'
 import { CATEGORIES, LIBELLES } from '../lib/categories'
 import { getEspeces } from '../lib/catalogue'
-import { regrouperLieux } from '../lib/lieux'
 
 const especes = await getEspeces()
 const descriptions = {
@@ -28,7 +26,5 @@ const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
         </a>
       ))}
     </div>
-
-    <Globe points={regrouperLieux(especes)} />
   </div>
 </Base>
