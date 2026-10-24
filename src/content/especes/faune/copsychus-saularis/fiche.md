@@ -19,5 +19,4 @@ photos:
     legende: Juvénile
   shama-dayal-male.webp:
     legende: Mâle
-    coupDeCoeur: true
 ---
