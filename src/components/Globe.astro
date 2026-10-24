@@ -72,7 +72,7 @@ const lieux = `${points.length} lieu${points.length > 1 ? 'x' : ''}`
     // Un cercle focusable par lieu.
     const cercles = points.map((p, i) => {
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
-      c.setAttribute('r', String(5 + 2.5 * Math.sqrt(p.especes.length - 1)))
+      c.setAttribute('r', String(8 + 1.5 * Math.sqrt(p.especes.length - 1)))
       c.setAttribute('tabindex', '0')
       c.setAttribute('role', 'button')
       c.setAttribute('aria-label', `${p.nom} : ${p.especes.length} espèce${p.especes.length > 1 ? 's' : ''}`)
@@ -86,7 +86,10 @@ const lieux = `${points.length} lieu${points.length > 1 ? 'x' : ''}`
     function placerBulle() {
       if (ouvert < 0) return
       const xy = projection([points[ouvert].position[1], points[ouvert].position[0]])!
-      bulle.style.left = `${(xy[0] / 600) * 100}%`
+      // Centrée sur le point, mais jamais coupée par les bords du cadre.
+      const largeur = cadre!.clientWidth, demi = bulle.offsetWidth / 2
+      const x = (xy[0] / 600) * largeur
+      bulle.style.left = `${Math.min(Math.max(x, demi), Math.max(demi, largeur - demi))}px`
       bulle.style.top = `${(xy[1] / 600) * 100}%`
     }
     function ouvrir(i: number) {
@@ -151,6 +154,8 @@ const lieux = `${points.length} lieu${points.length > 1 ? 'x' : ''}`
     // Glisser pour tourner (souris et doigt ; le défilement vertical de la page reste possible au doigt).
     let glisse: { x: number; y: number; r: [number, number] } | null = null
     svg.addEventListener('pointerdown', (e) => {
+      // Sur un point : pas de glisser, sinon la capture du pointeur détourne le clic vers le <svg>.
+      if ((e.target as Element).closest('circle')) return
       glisse = { x: e.clientX, y: e.clientY, r: rotation }
       svg.setPointerCapture(e.pointerId)
       pause()
@@ -162,6 +167,9 @@ const lieux = `${points.length} lieu${points.length > 1 ? 'x' : ''}`
       dessiner()
     })
     const finGlisse = () => { if (glisse) { glisse = null; if (ouvert < 0) reprendre() } }
+    // Souris sur le globe : il s'arrête pour qu'on puisse viser un point.
+    svg.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') pause() })
+    svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !glisse && ouvert < 0) reprendre() })
     svg.addEventListener('pointerup', finGlisse)
     svg.addEventListener('pointercancel', finGlisse)
 

@@ -13,7 +13,7 @@ it('groupe par position arrondie à ~10 km, GPS prioritaire, sans position ignor
   ])
   expect(points).toEqual([
     {
-      nom: 'Jardin de Balata, Martinique · Balata',
+      nom: 'Jardin de Balata · Balata',
       position: [14.7, -61.1],
       especes: [
         { nom: 'anolis', sci: 'anolis sci', url: '/faune/anolis/' },
@@ -22,6 +22,20 @@ it('groupe par position arrondie à ~10 km, GPS prioritaire, sans position ignor
     },
     { nom: 'Jura', position: [46.7, 5.9], especes: [{ nom: 'renard', sci: 'renard sci', url: '/faune/renard/' }] },
   ])
+})
+
+it('libellés proches d’un même lieu : noms courts sans doublon', () => {
+  const [p] = regrouperLieux([
+    espece('a', { lieu: 'Bang Kachao, Bangkok', positionLieu: [13.69, 100.56] }),
+    espece('b', { lieu: 'Bang Kachao, Bangkok, Thaïlande', positionLieu: [13.69, 100.56] }),
+    espece('c', { lieu: 'Benchakiti Park, Bangkok', positionLieu: [13.72, 100.55] }),
+  ])
+  expect(p.nom).toBe('Bang Kachao · Benchakiti Park')
+})
+
+it('un seul libellé : gardé en entier', () => {
+  expect(regrouperLieux([espece('a', { lieu: 'Jardin de Balata, Martinique', positionLieu: [14.6, -61] })])[0].nom)
+    .toBe('Jardin de Balata, Martinique')
 })
 
 it('sans lieu nommé', () => {

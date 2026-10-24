@@ -13,6 +13,12 @@ type EspeceLieu = {
 // Arrondi à 0,1° (~10 km) : le globe public ne révèle jamais un point exact.
 const arrondir = (v: number) => Math.round(v * 10) / 10
 
+/** Un seul libellé : tel quel. Plusieurs : leur première partie (« Bang Kachao, Bangkok » → « Bang Kachao »), sans doublon. */
+function nommer(noms: string[]): string {
+  if (noms.length <= 1) return noms[0] ?? 'Lieu d’observation'
+  return [...new Set(noms.map((n) => n.split(',')[0].trim()))].join(' · ')
+}
+
 /** Un point par zone de ~10 km, le plus fourni en premier. Le GPS de la photo prime sur le lieu géocodé. */
 export function regrouperLieux(especes: EspeceLieu[]): PointGlobe[] {
   const zones = new Map<string, { noms: Set<string>; position: [number, number]; especes: PointGlobe['especes'] }>()
@@ -27,6 +33,6 @@ export function regrouperLieux(especes: EspeceLieu[]): PointGlobe[] {
     zones.set(cle, zone)
   }
   return [...zones.values()]
-    .map((z) => ({ nom: [...z.noms].join(' · ') || 'Lieu d’observation', position: z.position, especes: z.especes }))
+    .map((z) => ({ nom: nommer([...z.noms]), position: z.position, especes: z.especes }))
     .sort((a, b) => b.especes.length - a.especes.length)
 }

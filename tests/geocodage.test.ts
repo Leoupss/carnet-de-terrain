@@ -12,6 +12,15 @@ it('renvoie [lat, lon] arrondis du premier résultat', async () => {
   expect(JSON.stringify(opts.headers)).not.toMatch(/@/)
 })
 
+it('écarte gares, rues et commerces (« Pyrénées » ≠ la station de métro parisienne)', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => [
+    { category: 'railway', lat: '48.87', lon: '2.38' },
+    { category: 'highway', lat: '1', lon: '1' },
+    { category: 'boundary', lat: '43.14379', lon: '0.15866' },
+  ] })))
+  expect(await geocoder('Pyrénées, France')).toEqual([43.14379, 0.15866])
+})
+
 it('aucun résultat → null', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => [] })))
   expect(await geocoder('Nulle part 12345')).toBeNull()
