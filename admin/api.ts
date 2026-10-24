@@ -171,7 +171,10 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
         if (r.length === 5 && m === 'PATCH') {
           const b = await lireJson(req)
           const texte = (v: unknown) => (typeof v === 'string' ? v.trim() : undefined)
-          return fichiers.modifierPhoto(racine, cat, slug, r[4], { legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu) })
+          return fichiers.modifierPhoto(racine, cat, slug, r[4], {
+            legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu),
+            coupDeCoeur: typeof b.coupDeCoeur === 'boolean' ? b.coupDeCoeur : undefined,
+          })
         }
         if (r.length === 5 && m === 'GET') {
           const e = (await fichiers.listerEspeces(racine)).find((x) => x.categorie === cat && x.slug === slug)

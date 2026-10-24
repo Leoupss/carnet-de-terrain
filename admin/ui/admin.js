@@ -396,10 +396,20 @@ function lignePhoto(base, fiche, nom, i, retirer) {
       rafraichirPublier()
     } catch (e) { retour.textContent = e.message }
   }
+  // Coup de cœur : enregistré dès le clic, la photo apparaît dans la mosaïque de l'accueil.
+  const coeur = el('input', { type: 'checkbox', id: id('coeur'), checked: infos.coupDeCoeur === true, onchange: async (e) => {
+    const coche = e.currentTarget.checked
+    try {
+      await api(`${base}/photos/${enc(nom)}`, json('PATCH', { coupDeCoeur: coche }))
+      retour.textContent = coche ? 'Ajoutée aux coups de cœur.' : 'Retirée des coups de cœur.'
+      rafraichirPublier()
+    } catch (err) { e.currentTarget.checked = !coche; retour.textContent = err.message }
+  } })
   return el('div', { class: 'photo-admin' },
     el('img', { src: `${API}${base}/photos/${enc(nom)}`, alt: '', loading: 'lazy' }),
     el('div', { class: 'photo-admin-champs' },
       el('div', { class: 'aide nom' }, nom),
+      el('label', { class: 'coeur', for: id('coeur') }, coeur, el('i', { class: 'etoile', 'aria-hidden': 'true' }, '★'), ' Coup de cœur (accueil)'),
       el('div', { class: 'champ' }, el('label', { for: id('legende') }, 'Légende'),
         el('input', { id: id('legende'), value: infos.legende ?? '', placeholder: 'ex. Mâle, Juvénile, Femelle en vol' })),
       el('div', { class: 'ligne' },

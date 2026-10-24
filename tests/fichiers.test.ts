@@ -138,6 +138,15 @@ describe('modifier, retirer, supprimer', () => {
     expect((await listerEspeces(racine))[0].fiche.photos).toBeUndefined()
   })
 
+  it('modifierPhoto coche et décoche le coup de cœur sans toucher au reste', async () => {
+    const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle' })
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { coupDeCoeur: true })
+    expect((await listerEspeces(racine))[0].fiche.photos?.[nom]).toEqual({ legende: 'Mâle', coupDeCoeur: true })
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { coupDeCoeur: false })
+    expect((await listerEspeces(racine))[0].fiche.photos?.[nom]).toEqual({ legende: 'Mâle' })
+  })
+
   it('modifierPhoto ne touche pas aux champs non envoyés', async () => {
     const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
     await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle', lieu: 'Jura' })

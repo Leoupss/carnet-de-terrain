@@ -29,7 +29,7 @@ export type Fiche = {
   /** Infos propres à une photo (clé = nom du fichier) ; à défaut, la page reprend celles de l'espèce. */
   photos?: Record<string, InfosPhoto>
 }
-export type InfosPhoto = { legende?: string; date?: string; lieu?: string }
+export type InfosPhoto = { legende?: string; date?: string; lieu?: string; coupDeCoeur?: boolean }
 export type EspeceAdmin = { categorie: Categorie; slug: string; fiche: Fiche; photos: string[] }
 
 /** Champs modifiables depuis l'admin (en plus de coordonnees, géré par le GPS). */
@@ -221,8 +221,9 @@ export async function modifierPhoto(
   if (infos.date && !/^\d{4}-\d{2}-\d{2}$/.test(infos.date)) throw new Error('Date invalide (AAAA-MM-JJ)')
   // Un champ non envoyé (undefined) garde sa valeur ; seule une chaîne vide l'efface.
   const envoyes = Object.fromEntries(Object.entries(infos).filter(([, v]) => v !== undefined))
-  const fusion: Record<string, string | undefined> = { ...fiche.photos?.[nom], ...envoyes }
-  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => v?.trim())) as InfosPhoto
+  const fusion: Record<string, string | boolean | undefined> = { ...fiche.photos?.[nom], ...envoyes }
+  // Texte vide ou case décochée : le champ disparaît de la fiche.
+  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => (typeof v === 'boolean' ? v : v?.trim()))) as InfosPhoto
   const { [nom]: _ancien, ...autres } = fiche.photos ?? {}
   const photos = Object.keys(propre).length ? { ...autres, [nom]: propre } : autres
   const nouvelle = { ...fiche, photos: Object.keys(photos).length ? photos : undefined }

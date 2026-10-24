@@ -16,6 +16,15 @@ const photos = regrouperPhotos(
   import.meta.glob<ImageMetadata>('/src/content/especes/**/*.{jpg,jpeg,png,webp}', { eager: true, import: 'default' }),
 )
 
+/** Photos cochées « coup de cœur » dans l'admin, avec leur espèce. */
+export async function getCoupsDeCoeur(): Promise<{ espece: Espece; photo: Photo; legende?: string }[]> {
+  return (await getEspeces()).flatMap((espece) =>
+    espece.photos
+      .filter((photo) => espece.data.photos?.[photo.nom]?.coupDeCoeur)
+      .map((photo) => ({ espece, photo, legende: espece.data.photos?.[photo.nom]?.legende })),
+  )
+}
+
 export async function getEspeces(categorie?: Categorie): Promise<Espece[]> {
   const entrees = await getCollection('especes')
   return entrees

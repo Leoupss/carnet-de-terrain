@@ -1,9 +1,19 @@
 ---
 import Base from '../layouts/Base.astro'
 import { CATEGORIES, LIBELLES } from '../lib/categories'
-import { getEspeces } from '../lib/catalogue'
+import { Image } from 'astro:assets'
+import { getEspeces, getCoupsDeCoeur } from '../lib/catalogue'
 
 const especes = await getEspeces()
+const coupsDeCoeur = await getCoupsDeCoeur()
+// Mosaïque sans trou : dès 5 photos, une grande (2×2) puis des lignes de 4 ; la dernière s'étire pour finir sa ligne.
+// Moins de 5 photos : tuiles égales côte à côte.
+const n = coupsDeCoeur.length
+const avecGrande = n >= 5
+const reste = avecGrande ? (n - 5) % 4 : 0
+const etirement = (i: number) => (avecGrande && i === n - 1 && reste ? 4 - reste + 1 : 1)
+// Sur mobile (2 colonnes), la grande prend toute la largeur : si les autres sont en nombre impair, la dernière s'élargit.
+const impairMobile = avecGrande && (n - 1) % 2 === 1
 const descriptions = {
   faune: 'Oiseaux, insectes, mammifères, reptiles — la vie animale dans son milieu.',
   flore: 'Fleurs, plantes, champignons — le monde végétal au fil des saisons.',
@@ -26,5 +36,23 @@ const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
         </a>
       ))}
     </div>
+
+    {coupsDeCoeur.length > 0 && (
+      <section class="coups-de-coeur" aria-labelledby="titre-coeur">
+        <h2 id="titre-coeur" class="surtitre">Mes coups de cœur</h2>
+        <div class={avecGrande ? 'mosaique' : 'mosaique mosaique-simple'} style={avecGrande ? undefined : `--colonnes: ${n}`}>
+          {coupsDeCoeur.map(({ espece, photo, legende }, i) => (
+            <a href={`/${espece.categorie}/${espece.slug}/`}
+               class:list={{ grande: avecGrande && i === 0, 'large-mobile': impairMobile && i === n - 1 }}
+               style={etirement(i) > 1 ? `--etirement: ${etirement(i)}` : undefined}>
+              <Image src={photo.image} widths={avecGrande && i === 0 ? [600, 900, 1200] : [300, 500, 900]}
+                     sizes={avecGrande && i === 0 ? '(max-width: 700px) 100vw, 600px' : '(max-width: 700px) 50vw, 400px'}
+                     alt={`${espece.data.nomCommun} (${espece.data.nomScientifique})${legende ? ` — ${legende}` : ''}`} loading="lazy" />
+              <span class="mosaique-nom">{espece.data.nomCommun}{legende && <em> · {legende}</em>}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
   </div>
 </Base>

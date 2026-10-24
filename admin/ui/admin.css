@@ -40,6 +40,10 @@ textarea { font: inherit; padding: .5rem .7rem; border: 1px solid var(--cream-da
 .photo-admin { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: .9rem; align-items: start; border: 1px solid var(--cream-dark); border-radius: 6px; padding: .7rem; }
 .photo-admin img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
 .photo-admin .champ { margin-bottom: .5rem; }
+.coeur { display: inline-flex; align-items: center; gap: .35rem; margin: .2rem 0 .6rem; cursor: pointer; font-weight: 500; }
+.coeur input { width: auto; accent-color: var(--gold); }
+.coeur .etoile { font-style: normal; color: var(--cream-dark); }
+.coeur input:checked + .etoile { color: var(--gold); }
 .photo-admin .actions { margin-top: .25rem; align-items: center; }
 @media (max-width: 600px) { .photo-admin { grid-template-columns: 1fr; } .photo-admin img { aspect-ratio: 4 / 3; } }
 .grille-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 1rem; }
