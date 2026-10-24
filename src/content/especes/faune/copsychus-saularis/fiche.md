@@ -19,4 +19,6 @@ photos:
     legende: Juvénile
   shama-dayal-male.webp:
     legende: Mâle
+  img-1568.jpg:
+    date: 2026-07-05
 ---

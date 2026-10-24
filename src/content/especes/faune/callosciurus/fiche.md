@@ -17,4 +17,5 @@ photos:
     date: 2026-08-16
   dsc02299.jpg:
     date: 2026-08-16
+    coupDeCoeur: true
 ---

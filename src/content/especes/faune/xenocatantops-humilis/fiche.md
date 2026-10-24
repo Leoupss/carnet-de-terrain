@@ -14,4 +14,7 @@ ajoute: 2026-10-24
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  atractomorpha-sp.webp:
+    coupDeCoeur: true
 ---

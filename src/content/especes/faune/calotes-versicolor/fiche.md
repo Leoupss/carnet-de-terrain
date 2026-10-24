@@ -18,4 +18,7 @@ lieu: Bang Kachao, Bangkok, Thaïlande
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  dsc00048.jpg:
+    coupDeCoeur: true
 ---
