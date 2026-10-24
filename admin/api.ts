@@ -50,6 +50,13 @@ const lireJson = async (req: IncomingMessage) => {
   try { return JSON.parse(String(await lireCorps(req)) || '{}') } catch { throw new ErreurHttp(400, 'JSON invalide') }
 }
 
+/** Ne garde que les champs modifiables envoyés sous forme de texte ; une chaîne vide efface le champ. */
+function champsTexte(b: Record<string, unknown>): Partial<Record<fichiers.ChampModifiable, string>> {
+  const champs: Partial<Record<fichiers.ChampModifiable, string>> = {}
+  for (const c of fichiers.CHAMPS_MODIFIABLES) if (typeof b[c] === 'string') champs[c] = (b[c] as string).trim()
+  return champs
+}
+
 function categorie(v: string): Categorie {
   if (!estCategorie(v)) throw new ErreurHttp(400, 'Catégorie inconnue')
   return v
@@ -106,8 +113,8 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
       if (typeof b.nomCommun !== 'string' || !b.nomCommun.trim()) throw new ErreurHttp(400, 'Nom commun requis')
       if (!GROUPES[cat].includes(b.groupe)) throw new ErreurHttp(400, 'Groupe invalide')
       return fichiers.creerEspece(racine, cat, {
+        ...champsTexte(b),
         nomScientifique: b.nomScientifique, nomCommun: b.nomCommun, groupe: b.groupe,
-        lieu: typeof b.lieu === 'string' && b.lieu.trim() ? b.lieu.trim() : undefined,
         gbifKey: Number.isInteger(b.gbifKey) ? b.gbifKey : undefined,
       })
     }
@@ -116,12 +123,7 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
       const cat = categorie(r[1])
       const slug = r[2]
       if (r.length === 3 && m === 'PATCH') {
-        const b = await lireJson(req)
-        const champs: Parameters<typeof fichiers.modifierFiche>[3] = {}
-        if (typeof b.nomCommun === 'string') champs.nomCommun = b.nomCommun.trim()
-        if (typeof b.groupe === 'string') champs.groupe = b.groupe
-        if (typeof b.lieu === 'string') champs.lieu = b.lieu.trim() || undefined
-        return fichiers.modifierFiche(racine, cat, slug, champs)
+        return fichiers.modifierFiche(racine, cat, slug, champsTexte(await lireJson(req)))
       }
       if (r.length === 3 && m === 'DELETE') { await fichiers.supprimerEspece(racine, cat, slug); return { ok: true } }
       if (r[3] === 'photos') {

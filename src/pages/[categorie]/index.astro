@@ -65,4 +65,8 @@ const titre = LIBELLES[categorie]
     })
   }
   recherche?.addEventListener('input', appliquer)
+
+  // Lien depuis une fiche : /faune/?groupe=Reptiles ouvre directement ce groupe.
+  const demande = new URLSearchParams(location.search).get('groupe')
+  boutons.find((b) => b.dataset.groupe === demande)?.click()
 </script>

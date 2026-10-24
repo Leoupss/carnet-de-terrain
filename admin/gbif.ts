@@ -25,13 +25,16 @@ export async function suggerer(q: string): Promise<{ key: number; nomScientifiqu
 
 export async function details(key: number): Promise<{
   nomScientifique: string; nomCommun: string | null; categorie: Categorie | null; groupe: string | null; gbifKey: number
+  statutUicn: string | null
 }> {
   let espece = await lire<EspeceGbif>(`/species/${key}`)
   if (espece.synonym && espece.acceptedKey) espece = await lire<EspeceGbif>(`/species/${espece.acceptedKey}`)
 
-  const noms = await lire<{ results: { vernacularName: string; language: string }[] }>(
-    `/species/${espece.key}/vernacularNames?limit=100`,
-  )
+  const [noms, uicn] = await Promise.all([
+    lire<{ results: { vernacularName: string; language: string }[] }>(`/species/${espece.key}/vernacularNames?limit=100`),
+    // Statut absent pour beaucoup d'espèces : ce n'est pas une erreur.
+    lire<{ code?: string }>(`/species/${espece.key}/iucnRedListCategory`).catch(() => null),
+  ])
   const fr = noms.results.find((n) => n.language === 'fra')?.vernacularName.trim()
   const classe = classerDepuisGbif(espece)
   return {
@@ -40,5 +43,6 @@ export async function details(key: number): Promise<{
     categorie: classe?.categorie ?? null,
     groupe: classe?.groupe ?? null,
     gbifKey: espece.key,
+    statutUicn: uicn?.code ?? null,
   }
 }

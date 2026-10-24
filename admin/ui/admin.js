@@ -27,6 +27,35 @@ const enc = encodeURIComponent
 
 let GROUPES = { faune: [], flore: [] }
 
+/* ---------- Infos détaillées (partagées entre Ajouter et Mon catalogue) ---------- */
+const UICN = [['', '—'], ['LC', 'LC — préoccupation mineure'], ['NT', 'NT — quasi menacée'], ['VU', 'VU — vulnérable'],
+  ['EN', 'EN — en danger'], ['CR', 'CR — en danger critique'], ['EW', 'EW — éteinte à l’état sauvage'], ['EX', 'EX — éteinte'],
+  ['DD', 'DD — données insuffisantes'], ['NE', 'NE — non évaluée']]
+const DETAILS = [
+  { cle: 'dateObservation', label: 'Date d’observation', type: 'date' },
+  { cle: 'taille', label: 'Taille', exemple: 'ex. 12–20 cm' },
+  { cle: 'poids', label: 'Poids', exemple: 'ex. 5–10 g' },
+  { cle: 'regime', label: 'Régime', exemple: 'ex. Insectivore' },
+  { cle: 'floraison', label: 'Floraison', exemple: 'ex. Mai à juillet' },
+  { cle: 'statutUicn', label: 'Statut UICN', type: 'uicn' },
+  { cle: 'habitat', label: 'Habitat', exemple: 'ex. Forêts tropicales, jardins', large: true },
+  { cle: 'description', label: 'Description / mon observation', type: 'textarea', large: true },
+]
+
+function champsDetails(prefixe, valeurs = {}) {
+  return el('div', { class: 'grille-details' }, DETAILS.map((c) => {
+    const id = `${prefixe}-${c.cle}`
+    const v = valeurs[c.cle] ?? ''
+    const saisie = c.type === 'uicn'
+      ? el('select', { id }, UICN.map(([code, texte]) => el('option', { value: code, selected: code === v }, texte)))
+      : c.type === 'textarea'
+        ? Object.assign(el('textarea', { id, placeholder: 'Ce que tu as observé, le comportement, le contexte de la photo…' }), { value: v })
+        : el('input', { id, type: c.type ?? 'text', value: v, placeholder: c.exemple })
+    return el('div', { class: `champ${c.large ? ' large' : ''}` }, el('label', { for: id }, c.label), saisie)
+  }))
+}
+const lireDetails = (prefixe) => Object.fromEntries(DETAILS.map((c) => [c.cle, $(`#${prefixe}-${c.cle}`).value]))
+
 function remplirGroupes(select, categorie, choisi) {
   select.replaceChildren(...GROUPES[categorie].map((g) => el('option', { value: g, selected: g === choisi }, g)))
 }
@@ -104,6 +133,7 @@ async function choisir(i) {
     $('#nomCommun').value = d.nomCommun ?? ''
     if (d.categorie) $('#categorie').value = d.categorie
     remplirGroupes($('#groupe'), $('#categorie').value, d.groupe)
+    $('#a-statutUicn').value = d.statutUicn ?? ''
     etatGbif.textContent = d.nomCommun ? '' : 'Pas de nom français sur GBIF — saisis-le à la main.'
     if (!d.nomCommun) $('#nomCommun').focus()
   } catch (e) {
@@ -124,7 +154,10 @@ async function verifierExistant() {
     } catch { /* nom invalide : signalé à l'enregistrement */ }
   }
   $('#deja').hidden = !existant
-  for (const id of ['#nomCommun', '#categorie', '#groupe', '#lieu']) $(id).disabled = !!existant
+  // Espèce existante : ces champs se modifient dans « Mon catalogue », pas ici.
+  for (const e of document.querySelectorAll('#nomCommun, #categorie, #groupe, #lieu, #infos-ajout input, #infos-ajout select, #infos-ajout textarea')) {
+    e.disabled = !!existant
+  }
 }
 $('#nomScientifique').addEventListener('change', () => { gbifKey = undefined; verifierExistant() })
 $('#categorie').addEventListener('change', () => remplirGroupes($('#groupe'), $('#categorie').value))
@@ -165,6 +198,7 @@ $('#form-ajout').addEventListener('submit', async (e) => {
 
   try {
     const { espece, existait } = await api('/especes', json('POST', {
+      ...lireDetails('a'),
       categorie: $('#categorie').value,
       nomScientifique: $('#nomScientifique').value,
       // Espèce existante : le serveur renvoie la fiche telle quelle, ce nom n'est pas utilisé.
@@ -197,6 +231,7 @@ $('#form-ajout').addEventListener('submit', async (e) => {
     afficherApercus()
     if (!restantes.length) {
       for (const id of ['#recherche', '#nomScientifique', '#nomCommun', '#lieu']) $(id).value = ''
+      $('#infos-ajout').replaceChildren(champsDetails('a'))
       gbifKey = undefined
       verifierExistant()
       message(`Visible sur le site local : /${espece.categorie}/${espece.slug}/`, 'ok')
@@ -251,7 +286,7 @@ function afficherDetail(x) {
 
   const enregistrer = async () => {
     try {
-      await api(base, json('PATCH', { nomCommun: nomCommun.value, groupe: groupe.value, lieu: lieu.value }))
+      await api(base, json('PATCH', { ...lireDetails('d'), nomCommun: nomCommun.value, groupe: groupe.value, lieu: lieu.value }))
       await chargerCatalogue()
       // Le panneau vient d'être redessiné : on écrit dans le nouveau.
       $('#detail [aria-live]').textContent = 'Modifications enregistrées.'
@@ -276,6 +311,7 @@ function afficherDetail(x) {
       el('div', { class: 'champ' }, el('label', { for: 'd-nom' }, 'Nom commun'), nomCommun),
       el('div', { class: 'champ' }, el('label', { for: 'd-groupe' }, 'Groupe'), groupe)),
     el('div', { class: 'champ' }, el('label', { for: 'd-lieu' }, 'Lieu'), lieu),
+    champsDetails('d', x.fiche),
     x.fiche.coordonnees ? el('p', { class: 'aide' }, `GPS : ${x.fiche.coordonnees.join(', ')}`) : null,
     el('div', { class: 'actions' }, el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer')),
     retour,
@@ -331,5 +367,6 @@ $('#confirmer-publier').addEventListener('click', async () => {
 })
 
 /* ---------- Démarrage ---------- */
+$('#infos-ajout').replaceChildren(champsDetails('a'))
 api('/config').then((c) => { GROUPES = c.groupes; remplirGroupes($('#groupe'), $('#categorie').value) })
 rafraichirPublier()

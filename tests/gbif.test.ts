@@ -33,7 +33,17 @@ it('details trouve le nom français et classe l’espèce', async () => {
   })
   expect(await details(5219243)).toEqual({
     nomScientifique: 'Vulpes vulpes', nomCommun: 'Renard roux', categorie: 'faune', groupe: 'Mammifères', gbifKey: 5219243,
+    statutUicn: null,
   })
+})
+
+it('details récupère le statut UICN quand il existe', async () => {
+  simuler({
+    '/species/9/iucnRedListCategory': { category: 'LEAST_CONCERN', code: 'LC' },
+    '/species/9/vernacularNames': { results: [] },
+    '/species/9': { key: 9, canonicalName: 'X y', kingdom: 'Animalia', class: 'Reptilia' },
+  })
+  expect(await details(9)).toMatchObject({ statutUicn: 'LC' })
 })
 
 it('details sans nom français → nomCommun null', async () => {

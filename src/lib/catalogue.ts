@@ -8,6 +8,8 @@ export type Espece = {
   slug: string
   data: CollectionEntry<'especes'>['data']
   photos: ImageMetadata[]
+  /** Pour `render(espece.entree)` : la description écrite sous le frontmatter. */
+  entree: CollectionEntry<'especes'>
 }
 
 const photos = regrouperPhotos(
@@ -19,7 +21,7 @@ export async function getEspeces(categorie?: Categorie): Promise<Espece[]> {
   return entrees
     .map((e) => {
       const [cat, slug] = e.id.split('/') as [Categorie, string]
-      return { categorie: cat, slug, data: e.data, photos: photos.get(e.id) ?? [] }
+      return { categorie: cat, slug, data: e.data, photos: photos.get(e.id) ?? [], entree: e }
     })
     // Une fiche sans photo (envoi interrompu) reste invisible.
     .filter((e) => e.photos.length > 0 && (!categorie || e.categorie === categorie))

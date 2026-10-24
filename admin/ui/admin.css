@@ -25,6 +25,12 @@ main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
 label, .label { font-weight: 500; font-size: .9rem; }
 input, select { padding: .5rem .7rem; border: 1px solid var(--cream-dark); border-radius: 4px; background: #fff; width: 100%; }
 .aide { color: var(--text-muted); font-size: .85rem; font-weight: 400; }
+textarea { font: inherit; padding: .5rem .7rem; border: 1px solid var(--cream-dark); border-radius: 4px; background: #fff; width: 100%; min-height: 7rem; resize: vertical; }
+.details-ajout { margin-bottom: 1rem; border: 1px solid var(--cream-dark); border-radius: 6px; background: #fff; padding: .6rem .9rem; }
+.details-ajout summary { cursor: pointer; font-weight: 500; font-size: .9rem; }
+.details-ajout[open] summary { margin-bottom: .9rem; }
+.grille-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 1rem; }
+.grille-details .large { grid-column: 1 / -1; }
 
 button { cursor: pointer; padding: .5rem 1rem; border: 1px solid var(--cream-dark); border-radius: 4px; background: #fff; }
 button:disabled { opacity: .5; cursor: not-allowed; }

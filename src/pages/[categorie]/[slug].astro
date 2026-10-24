@@ -1,7 +1,9 @@
 ---
 import { Image, getImage } from 'astro:assets'
+import { render } from 'astro:content'
 import Base from '../../layouts/Base.astro'
 import { LIBELLES } from '../../lib/categories'
+import { slugify } from '../../lib/slug'
 import { getEspeces, type Espece } from '../../lib/catalogue'
 
 export async function getStaticPaths() {
@@ -10,25 +12,75 @@ export async function getStaticPaths() {
 }
 
 const { espece } = Astro.props as { espece: Espece }
-const { nomCommun, nomScientifique, groupe } = espece.data
-const alt = `${nomCommun} (${nomScientifique})`
+const d = espece.data
+const alt = `${d.nomCommun} (${d.nomScientifique})`
+const [principale, ...autres] = espece.photos
 const grandes = await Promise.all(espece.photos.map((p) => getImage({ src: p, width: 2000 })))
----
-<Base titre={nomCommun} description={`${alt} — photographies de Léo LUCAS`}>
-  <div class="conteneur">
-    <header class="tete">
-      <p class="surtitre"><a href={`/${espece.categorie}/`}>{LIBELLES[espece.categorie]}</a></p>
-      <h1>{nomCommun}</h1>
-      <p class="sous-titre"><em>{nomScientifique}</em></p>
-      <span class="groupe">{groupe}</span>
-    </header>
+const { Content } = await render(espece.entree)
+const aDescription = Boolean(espece.entree.body?.trim())
 
-    <div class="galerie">
-      {espece.photos.map((p, i) => (
-        <button type="button" data-index={i} data-grande={grandes[i].src} aria-label={`Agrandir la photo ${i + 1} sur ${espece.photos.length}`}>
-          <Image src={p} width={800} alt={alt} loading={i < 2 ? 'eager' : 'lazy'} />
+const scientifiques = [
+  ['Taille', d.taille], ['Poids', d.poids], ['Habitat', d.habitat], ['Floraison', d.floraison], ['Régime', d.regime],
+].filter((l): l is [string, string] => Boolean(l[1]))
+const date = d.dateObservation?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+const observation = [['Lieu', d.lieu], ['Date', date]].filter((l): l is [string, string] => Boolean(l[1]))
+const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}`
+---
+<Base titre={d.nomCommun} description={`${alt} — photographies de Léo LUCAS`}>
+  <div class="conteneur fiche">
+    <nav class="fil" aria-label="Fil d'Ariane">
+      <a href="/">Accueil</a><span aria-hidden="true">/</span>
+      <a href={`/${espece.categorie}/`}>{LIBELLES[espece.categorie]}</a><span aria-hidden="true">/</span>
+      <a href={lienGroupe}>{d.groupe}</a><span aria-hidden="true">/</span>
+      <span aria-current="page">{d.nomCommun}</span>
+    </nav>
+
+    <div class="fiche-mise-en-page">
+      <div class="fiche-photos">
+        <button type="button" class="photo-principale" data-index="0" data-grande={grandes[0].src} aria-label="Agrandir la photo">
+          <Image src={principale} widths={[600, 900, 1300]} sizes="(max-width: 960px) 100vw, 640px" alt={alt} loading="eager" />
+          <span class="copyright" aria-hidden="true">© Léo LUCAS</span>
         </button>
-      ))}
+        {autres.length > 0 && (
+          <div class="fiche-autres">
+            {autres.map((p, i) => (
+              <button type="button" data-index={i + 1} data-grande={grandes[i + 1].src} aria-label={`Agrandir la photo ${i + 2} sur ${espece.photos.length}`}>
+                <Image src={p} width={400} alt={alt} loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div class="fiche-infos">
+        <a class={`badge badge-${slugify(d.groupe)}`} href={lienGroupe}>{d.groupe}</a>
+        <h1 class="fiche-nom">{d.nomCommun}</h1>
+        <p class="fiche-sci"><em>{d.nomScientifique}</em></p>
+
+        {(scientifiques.length > 0 || d.statutUicn) && <>
+          <div class="ornement" aria-hidden="true"></div>
+          <section>
+            <h2 class="fiche-section">Informations scientifiques</h2>
+            <dl class="fiche-meta">
+              {scientifiques.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+              {d.statutUicn && <div><dt>Statut UICN</dt><dd><span class={`uicn uicn-${d.statutUicn.toLowerCase()}`}>{d.statutUicn}</span></dd></div>}
+            </dl>
+          </section>
+        </>}
+
+        {(observation.length > 0 || aDescription) && <>
+          <div class="ornement" aria-hidden="true"></div>
+          <section>
+            <h2 class="fiche-section">Mon observation</h2>
+            {observation.length > 0 && (
+              <dl class="fiche-meta">
+                {observation.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+              </dl>
+            )}
+            {aDescription && <div class="fiche-description"><Content /></div>}
+          </section>
+        </>}
+      </div>
     </div>
   </div>
 
@@ -43,7 +95,7 @@ const grandes = await Promise.all(espece.photos.map((p) => getImage({ src: p, wi
 </Base>
 
 <script>
-  const vignettes = [...document.querySelectorAll<HTMLButtonElement>('.galerie button')]
+  const vignettes = [...document.querySelectorAll<HTMLButtonElement>('.fiche-photos button')]
   const dialog = document.querySelector<HTMLDialogElement>('.lightbox')!
   const img = dialog.querySelector('img')!
   let index = 0

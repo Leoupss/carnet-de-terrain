@@ -20,6 +20,13 @@ const especes = defineCollection({
     lieu: z.string().optional(),
     coordonnees: z.tuple([z.number(), z.number()]).optional(),
     gbifKey: z.number().optional(),
+    dateObservation: z.coerce.date().optional(),
+    taille: z.string().optional(),
+    poids: z.string().optional(),
+    habitat: z.string().optional(),
+    floraison: z.string().optional(),
+    regime: z.string().optional(),
+    statutUicn: z.enum(['LC', 'NT', 'VU', 'EN', 'CR', 'EW', 'EX', 'DD', 'NE']).optional(),
   }),
 })
 
