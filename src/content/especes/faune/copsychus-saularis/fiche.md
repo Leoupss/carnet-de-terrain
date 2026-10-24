@@ -15,8 +15,9 @@ positionLieu:
   - 13.69645
   - 100.56672
 photos:
-  shama-dayal-male.webp:
-    legende: Mâle
   shama-dayal.webp:
     legende: Juvénile
+  shama-dayal-male.webp:
+    legende: Mâle
+    coupDeCoeur: true
 ---

@@ -14,4 +14,7 @@ ajoute: 2026-10-24
 positionLieu:
   - 48.7226
   - 1.7637
+photos:
+  passiflore-bleue.webp:
+    coupDeCoeur: true
 ---

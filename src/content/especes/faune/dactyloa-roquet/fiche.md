@@ -14,4 +14,7 @@ statutUicn: LC
 positionLieu:
   - 14.67105
   - -61.09197
+photos:
+  08032023-img-3834-9.jpg:
+    coupDeCoeur: true
 ---

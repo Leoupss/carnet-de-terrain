@@ -19,4 +19,5 @@ photos:
   hibiscus-rose-de-chine.webp:
     lieu: Jardin de Balata, Martinique
     date: 2023-03-08
+    coupDeCoeur: true
 ---

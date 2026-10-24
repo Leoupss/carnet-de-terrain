@@ -14,4 +14,7 @@ ajoute: 2026-10-24
 positionLieu:
   - 43.53685
   - 5.63601
+photos:
+  araignee-crabe.webp:
+    coupDeCoeur: true
 ---
