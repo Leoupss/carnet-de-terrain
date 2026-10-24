@@ -1,0 +1,20 @@
+{
+  "name": "carnet-de-terrain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/verifier-build.mjs",
+    "preview": "astro preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "astro": "^7.4.2",
+    "exifr": "^7.1.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5"
+  }
+}

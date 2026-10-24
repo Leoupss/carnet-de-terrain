@@ -1,0 +1,51 @@
+---
+import '../styles/global.css'
+
+interface Props {
+  titre?: string
+  description?: string
+  // Pages Markdown : Astro passe le frontmatter dans `frontmatter`.
+  frontmatter?: { titre?: string; description?: string }
+}
+const { frontmatter } = Astro.props
+const titre = Astro.props.titre ?? frontmatter?.titre ?? 'Carnet de terrain'
+const description = Astro.props.description ?? frontmatter?.description ?? 'Observations de la faune et de la flore — photographies de Léo LUCAS'
+const page = Astro.url.pathname
+const liens = [
+  { href: '/', label: 'Accueil' },
+  { href: '/faune/', label: 'Faune' },
+  { href: '/flore/', label: 'Flore' },
+  { href: '/a-propos/', label: 'À propos' },
+]
+const actif = (href: string) => (href === '/' ? page === '/' : page.startsWith(href))
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titre === 'Carnet de terrain' ? titre : `${titre} — Carnet de terrain`}</title>
+    <meta name="description" content={description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="entete">
+      <div class="conteneur">
+        <a class="logo" href="/">Carnet de terrain</a>
+        <nav aria-label="Navigation principale">
+          <ul class="nav">
+            {liens.map((l) => <li><a href={l.href} aria-current={actif(l.href) ? 'page' : undefined}>{l.label}</a></li>)}
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="pied">
+      <div class="conteneur">© {new Date().getFullYear()} Léo LUCAS — photographies naturalistes</div>
+    </footer>
+  </body>
+</html>
