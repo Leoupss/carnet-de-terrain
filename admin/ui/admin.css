@@ -43,6 +43,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .vignettes { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .5rem; margin-top: .75rem; }
 .vignette { position: relative; }
 .vignette img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; display: block; }
+.sans-apercu { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: .5rem; font-size: .75rem; color: var(--rouge); background: var(--cream-mid); border-radius: 4px; }
 .vignette button { position: absolute; top: 4px; right: 4px; padding: 0 .45rem; font-size: .85rem; background: rgba(255,255,255,.9); }
 .vignette .nom { font-size: .75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

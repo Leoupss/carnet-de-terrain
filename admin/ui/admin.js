@@ -13,6 +13,9 @@ function el(tag, attrs = {}, ...enfants) {
   return e
 }
 
+/** replaceChildren qui ignore les enfants absents (sinon « null » s'affiche en texte). */
+const remplacer = (parent, ...enfants) => parent.replaceChildren(...enfants.filter((x) => x != null && x !== false))
+
 async function api(chemin, opts = {}) {
   const r = await fetch(API + chemin, opts)
   const corps = await r.json().catch(() => ({}))
@@ -78,6 +81,8 @@ recherche.addEventListener('input', () => {
 })
 
 recherche.addEventListener('keydown', (e) => {
+  // Entrée ici sert à choisir une suggestion, jamais à soumettre le formulaire.
+  if (e.key === 'Enter') e.preventDefault()
   if (liste.hidden) return
   if (e.key === 'ArrowDown') { actif = Math.min(actif + 1, suggestions.length - 1); afficherSuggestions(); e.preventDefault() }
   else if (e.key === 'ArrowUp') { actif = Math.max(actif - 1, 0); afficherSuggestions(); e.preventDefault() }
@@ -131,7 +136,9 @@ let photos = []
 function afficherApercus() {
   $('#apercus').replaceChildren(...photos.map((p, i) =>
     el('div', { class: 'vignette' },
-      el('img', { src: p.url, alt: '' }),
+      ['image/jpeg', 'image/png', 'image/webp'].includes(p.fichier.type)
+        ? el('img', { src: p.url, alt: '' })
+        : el('div', { class: 'sans-apercu' }, 'Format non pris en charge'),
       el('button', { type: 'button', 'aria-label': `Retirer ${p.fichier.name}`, onclick: () => { URL.revokeObjectURL(p.url); photos.splice(i, 1); afficherApercus() } }, '×'),
       el('div', { class: 'nom' }, p.fichier.name))))
 }
@@ -245,8 +252,9 @@ function afficherDetail(x) {
   const enregistrer = async () => {
     try {
       await api(base, json('PATCH', { nomCommun: nomCommun.value, groupe: groupe.value, lieu: lieu.value }))
-      retour.textContent = 'Modifications enregistrées.'
       await chargerCatalogue()
+      // Le panneau vient d'être redessiné : on écrit dans le nouveau.
+      $('#detail [aria-live]').textContent = 'Modifications enregistrées.'
       rafraichirPublier()
     } catch (e) { retour.textContent = e.message }
   }
@@ -262,7 +270,7 @@ function afficherDetail(x) {
   }
 
   $('#detail').hidden = false
-  $('#detail').replaceChildren(
+  remplacer($('#detail'),
     el('h2', {}, x.fiche.nomCommun), el('em', {}, `${x.fiche.nomScientifique} · ${x.categorie}`),
     el('div', { class: 'ligne', style: 'margin-top:1rem' },
       el('div', { class: 'champ' }, el('label', { for: 'd-nom' }, 'Nom commun'), nomCommun),
@@ -299,7 +307,7 @@ boutonPublier.addEventListener('click', async () => {
   if (!r) return
   $('#resultat-publier').textContent = ''
   $('#confirmer-publier').disabled = false
-  $('#resume').replaceChildren(
+  remplacer($('#resume'),
     r.changements.length
       ? el('ul', {}, r.changements.map((c) => el('li', {}, el('span', {}, c.etat), c.chemin)))
       : el('p', {}, 'Aucun nouveau changement.'),
