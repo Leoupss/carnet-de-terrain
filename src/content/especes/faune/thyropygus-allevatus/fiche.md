@@ -1,7 +1,7 @@
 ---
 nomScientifique: Thyropygus allevatus
 nomCommun: Mille-pattes géant
-groupe: Autres
+groupe: Insectes
 gbifKey: 1024292
 lieu: Bang Kachao, Bangkok, Thaïlande
 dateObservation: 2026-05-30
