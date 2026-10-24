@@ -83,6 +83,7 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
     if (seg[0] !== 'api') return PAS_TROUVE
     const r = seg.slice(1)
 
+    if (m === 'GET' && r[0] === 'config' && r.length === 1) return { groupes: GROUPES }
     if (m === 'GET' && r[0] === 'gbif' && r[1] === 'suggest') return suggerer(url.searchParams.get('q') ?? '')
     if (m === 'GET' && r[0] === 'gbif' && r[1] === 'espece' && r[2]) return details(Number(r[2]))
 

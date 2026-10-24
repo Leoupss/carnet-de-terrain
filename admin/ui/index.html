@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin — Carnet de terrain</title>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body>
+  <header class="entete">
+    <a class="logo" href="/" target="_blank">Carnet de terrain <small>· admin locale</small></a>
+    <nav class="onglets" role="tablist">
+      <button role="tab" id="onglet-ajouter" aria-selected="true" aria-controls="panneau-ajouter">Ajouter</button>
+      <button role="tab" id="onglet-catalogue" aria-selected="false" aria-controls="panneau-catalogue">Mon catalogue</button>
+    </nav>
+    <button id="publier" class="principal" disabled>Publier</button>
+  </header>
+
+  <main>
+    <!-- Ajouter -->
+    <section id="panneau-ajouter" role="tabpanel" aria-labelledby="onglet-ajouter">
+      <form id="form-ajout" autocomplete="off">
+        <div class="champ recherche-espece">
+          <label for="recherche">Espèce</label>
+          <input id="recherche" type="text" placeholder="Nom scientifique ou commun (ex. Vulpes vulpes)"
+                 role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" />
+          <ul id="suggestions" role="listbox" hidden></ul>
+          <p class="aide" id="etat-gbif"></p>
+        </div>
+
+        <p id="deja" class="bandeau" hidden>Cette espèce est déjà au catalogue — les photos seront ajoutées à sa fiche.</p>
+
+        <div class="ligne">
+          <div class="champ">
+            <label for="nomScientifique">Nom scientifique</label>
+            <input id="nomScientifique" required />
+          </div>
+          <div class="champ">
+            <label for="nomCommun">Nom commun</label>
+            <input id="nomCommun" required />
+          </div>
+        </div>
+
+        <div class="ligne">
+          <div class="champ">
+            <label for="categorie">Catégorie</label>
+            <select id="categorie">
+              <option value="faune">Faune</option>
+              <option value="flore">Flore</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="groupe">Groupe</label>
+            <select id="groupe"></select>
+          </div>
+          <div class="champ">
+            <label for="lieu">Lieu <span class="aide">(facultatif, non affiché)</span></label>
+            <input id="lieu" placeholder="ex. Bang Kachao, Thaïlande" />
+          </div>
+        </div>
+
+        <div class="champ">
+          <span class="label">Photos</span>
+          <label id="depot" class="depot" tabindex="0">
+            <input id="fichiers" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
+            Glisse tes photos ici ou <u>clique pour choisir</u><br />
+            <span class="aide">JPG, PNG ou WebP — les RAW (CR3) et HEIC doivent être exportés en JPG</span>
+          </label>
+          <div id="apercus" class="vignettes"></div>
+        </div>
+
+        <progress id="progression" max="1" value="0" hidden></progress>
+        <ul id="messages" class="messages" aria-live="polite"></ul>
+        <button type="submit" class="principal" id="enregistrer">Enregistrer</button>
+      </form>
+    </section>
+
+    <!-- Catalogue -->
+    <section id="panneau-catalogue" role="tabpanel" aria-labelledby="onglet-catalogue" hidden>
+      <input id="filtre-catalogue" type="search" placeholder="Rechercher dans mon catalogue" aria-label="Rechercher dans mon catalogue" />
+      <div class="catalogue">
+        <ul id="liste" class="liste"></ul>
+        <div id="detail" class="detail" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dialog-publier">
+    <h2>Publier</h2>
+    <div id="resume"></div>
+    <p id="resultat-publier" aria-live="polite"></p>
+    <div class="actions">
+      <button id="annuler-publier" type="button">Fermer</button>
+      <button id="confirmer-publier" type="button" class="principal">Confirmer</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="/admin/admin.js"></script>
+</body>
+</html>
