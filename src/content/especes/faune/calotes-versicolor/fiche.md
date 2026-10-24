@@ -14,4 +14,8 @@ statutUicn: LC
 nomScientifique: Calotes versicolor
 gbifKey: 9125207
 ajoute: 2026-10-24
+lieu: Bang Kachao, Bangkok, Thaïlande
+positionLieu:
+  - 13.69645
+  - 100.56672
 ---
