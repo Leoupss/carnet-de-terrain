@@ -6,6 +6,7 @@ import { slugify } from '../src/lib/slug'
 import { estCategorie, GROUPES, type Categorie } from '../src/lib/categories'
 import * as fichiers from './fichiers'
 import { suggerer, details } from './gbif'
+import { geocoder } from './geocodage'
 import { resume, publier } from './publier'
 
 const UI = fileURLToPath(new URL('./ui/', import.meta.url))
@@ -56,6 +57,16 @@ function champsTexte(b: Record<string, unknown>): Partial<Record<fichiers.ChampM
   for (const c of fichiers.CHAMPS_MODIFIABLES) if (typeof b[c] === 'string') champs[c] = (b[c] as string).trim()
   return champs
 }
+
+/** "14.67, -61.09" → [14.67, -61.09] ; "" → null (effacer). */
+function lirePosition(texte: string): [number, number] | null {
+  if (!texte.trim()) return null
+  const m = texte.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/)
+  const [lat, lon] = m ? [Number(m[1]), Number(m[2])] : [NaN, NaN]
+  if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) throw new ErreurHttp(400, 'Position invalide : « latitude, longitude », ex. 14.67, -61.09')
+  return [lat, lon]
+}
+const texteDePosition = (p: [number, number] | null | undefined) => (p ? p.join(', ') : '')
 
 function categorie(v: string): Categorie {
   if (!estCategorie(v)) throw new ErreurHttp(400, 'Catégorie inconnue')
@@ -112,18 +123,36 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
       if (typeof b.nomScientifique !== 'string') throw new ErreurHttp(400, 'Nom scientifique requis')
       if (typeof b.nomCommun !== 'string' || !b.nomCommun.trim()) throw new ErreurHttp(400, 'Nom commun requis')
       if (!GROUPES[cat].includes(b.groupe)) throw new ErreurHttp(400, 'Groupe invalide')
-      return fichiers.creerEspece(racine, cat, {
+      const r = await fichiers.creerEspece(racine, cat, {
         ...champsTexte(b),
         nomScientifique: b.nomScientifique, nomCommun: b.nomCommun, groupe: b.groupe,
         gbifKey: Number.isInteger(b.gbifKey) ? b.gbifKey : undefined,
       })
+      if (!r.existait && r.espece.fiche.lieu) {
+        const positionLieu = await geocoder(r.espece.fiche.lieu)
+        if (positionLieu) r.espece.fiche = await fichiers.modifierFiche(racine, cat, r.espece.slug, { positionLieu })
+      }
+      return r
     }
 
     if (r.length >= 3) {
       const cat = categorie(r[1])
       const slug = r[2]
       if (r.length === 3 && m === 'PATCH') {
-        return fichiers.modifierFiche(racine, cat, slug, champsTexte(await lireJson(req)))
+        const b = await lireJson(req)
+        const avant = await fichiers.lireFicheEspece(racine, cat, slug)
+        const champs: Parameters<typeof fichiers.modifierFiche>[3] = champsTexte(b)
+        const saisie = typeof b.positionLieu === 'string' ? lirePosition(b.positionLieu) : undefined
+        const lieu = champs.lieu ?? avant.lieu
+
+        if (saisie !== undefined && texteDePosition(saisie) !== texteDePosition(avant.positionLieu)) {
+          champs.positionLieu = saisie ?? undefined
+        } else if (!lieu) {
+          champs.positionLieu = undefined
+        } else if (lieu !== avant.lieu || !avant.positionLieu) {
+          champs.positionLieu = (await geocoder(lieu)) ?? undefined
+        }
+        return fichiers.modifierFiche(racine, cat, slug, champs)
       }
       if (r.length === 3 && m === 'DELETE') { await fichiers.supprimerEspece(racine, cat, slug); return { ok: true } }
       if (r[3] === 'photos') {

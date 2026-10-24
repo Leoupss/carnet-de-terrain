@@ -1,0 +1,171 @@
+---
+import type { PointGlobe } from '../lib/lieux'
+
+interface Props { points: PointGlobe[] }
+const { points } = Astro.props
+const lieux = `${points.length} lieu${points.length > 1 ? 'x' : ''}`
+---
+<section class="globe" aria-labelledby="titre-globe">
+  <h2 id="titre-globe" class="surtitre">Mes lieux d’observation</h2>
+  <p class="sous-titre">
+    {points.length
+      ? `${lieux} — fais tourner le globe et clique sur un point.`
+      : 'Les lieux de mes observations apparaîtront ici.'}
+  </p>
+
+  <div class="globe-cadre" data-points={JSON.stringify(points)}>
+    <svg viewBox="0 0 600 600" role="img" aria-label="Globe des lieux d’observation">
+      <path class="globe-ocean" />
+      <path class="globe-grille" />
+      <path class="globe-terres" />
+      <path class="globe-frontieres" />
+      <g class="globe-points"></g>
+      <path class="globe-contour" />
+    </svg>
+    <div class="globe-bulle" role="dialog" aria-modal="false" hidden>
+      <button type="button" class="globe-fermer" aria-label="Fermer">×</button>
+      <p class="globe-bulle-lieu"></p>
+      <ul></ul>
+    </div>
+  </div>
+
+  {points.length > 0 && (
+    <details class="globe-liste">
+      <summary>Voir la liste des lieux</summary>
+      <ul>
+        {points.map((p) => (
+          <li>
+            <strong>{p.nom}</strong>
+            <ul>{p.especes.map((e) => <li><a href={e.url}>{e.nom}</a> <em>{e.sci}</em></li>)}</ul>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )}
+</section>
+
+<script>
+  import { geoOrthographic, geoPath, geoGraticule10, geoDistance } from 'd3-geo'
+  import { feature, mesh } from 'topojson-client'
+  import type { Topology, GeometryCollection } from 'topojson-specification'
+  import monde from 'world-atlas/countries-110m.json'
+  import type { PointGlobe } from '../lib/lieux'
+
+  const cadre = document.querySelector<HTMLElement>('.globe-cadre')
+  if (cadre) {
+    const points: PointGlobe[] = JSON.parse(cadre.dataset.points ?? '[]')
+    const svg = cadre.querySelector('svg')!
+    const $ = <T extends Element>(s: string) => svg.querySelector<T>(s)!
+    const bulle = cadre.querySelector<HTMLElement>('.globe-bulle')!
+
+    const topo = monde as unknown as Topology<{ countries: GeometryCollection }>
+    const terres = feature(topo, topo.objects.countries)
+    const frontieres = mesh(topo, topo.objects.countries, (a, b) => a !== b)
+    const sphere = { type: 'Sphere' } as const
+
+    // Démarre centré sur le lieu le plus fourni.
+    const depart = points[0]?.position ?? [20, 0]
+    let rotation: [number, number] = [-depart[1], -Math.max(-50, Math.min(50, depart[0]))]
+    const projection = geoOrthographic().scale(290).translate([300, 300]).clipAngle(90)
+    const chemin = geoPath(projection)
+
+    // Un cercle focusable par lieu.
+    const cercles = points.map((p, i) => {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      c.setAttribute('r', String(5 + 2.5 * Math.sqrt(p.especes.length - 1)))
+      c.setAttribute('tabindex', '0')
+      c.setAttribute('role', 'button')
+      c.setAttribute('aria-label', `${p.nom} : ${p.especes.length} espèce${p.especes.length > 1 ? 's' : ''}`)
+      c.addEventListener('click', (e) => { e.stopPropagation(); ouvrir(i) })
+      c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(i) } })
+      $('.globe-points').append(c)
+      return c
+    })
+
+    let ouvert = -1
+    function placerBulle() {
+      if (ouvert < 0) return
+      const xy = projection([points[ouvert].position[1], points[ouvert].position[0]])!
+      bulle.style.left = `${(xy[0] / 600) * 100}%`
+      bulle.style.top = `${(xy[1] / 600) * 100}%`
+    }
+    function ouvrir(i: number) {
+      ouvert = i
+      const p = points[i]
+      bulle.querySelector('.globe-bulle-lieu')!.textContent = p.nom
+      bulle.querySelector('ul')!.replaceChildren(...p.especes.map((e) => {
+        const li = document.createElement('li')
+        const a = Object.assign(document.createElement('a'), { href: e.url, textContent: e.nom })
+        li.append(a, ' ', Object.assign(document.createElement('em'), { textContent: e.sci }))
+        return li
+      }))
+      bulle.hidden = false
+      placerBulle()
+      pause()
+      bulle.querySelector<HTMLElement>('.globe-fermer')!.focus()
+    }
+    function fermer() {
+      if (ouvert < 0) return
+      const c = cercles[ouvert]
+      ouvert = -1
+      bulle.hidden = true
+      c?.focus()
+      reprendre()
+    }
+    bulle.querySelector('.globe-fermer')!.addEventListener('click', fermer)
+    cadre.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermer() })
+    document.addEventListener('click', (e) => { if (!bulle.contains(e.target as Node)) fermer() })
+
+    function dessiner() {
+      projection.rotate(rotation)
+      $('.globe-ocean').setAttribute('d', chemin(sphere)!)
+      $('.globe-contour').setAttribute('d', chemin(sphere)!)
+      $('.globe-grille').setAttribute('d', chemin(geoGraticule10()) ?? '')
+      $('.globe-terres').setAttribute('d', chemin(terres) ?? '')
+      $('.globe-frontieres').setAttribute('d', chemin(frontieres) ?? '')
+      const centre: [number, number] = [-rotation[0], -rotation[1]]
+      points.forEach((p, i) => {
+        const lonLat: [number, number] = [p.position[1], p.position[0]]
+        const visible = geoDistance(lonLat, centre) < Math.PI / 2 - 0.05
+        const xy = projection(lonLat)!
+        cercles[i].setAttribute('cx', String(xy[0]))
+        cercles[i].setAttribute('cy', String(xy[1]))
+        cercles[i].style.display = visible ? '' : 'none'
+        if (!visible && ouvert === i) fermer()
+      })
+      placerBulle()
+    }
+
+    // Rotation lente, coupée si l'utilisateur préfère moins d'animations.
+    const animer = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    let enPause = false, minuterie: number | undefined, precedent = 0
+    function pause() { enPause = true; clearTimeout(minuterie) }
+    function reprendre() { clearTimeout(minuterie); minuterie = window.setTimeout(() => { enPause = false }, 3000) }
+    function boucle(t: number) {
+      if (animer && !enPause && precedent) rotation = [rotation[0] + (t - precedent) * 0.006, rotation[1]]
+      precedent = t
+      dessiner()
+      requestAnimationFrame(boucle)
+    }
+
+    // Glisser pour tourner (souris et doigt ; le défilement vertical de la page reste possible au doigt).
+    let glisse: { x: number; y: number; r: [number, number] } | null = null
+    svg.addEventListener('pointerdown', (e) => {
+      glisse = { x: e.clientX, y: e.clientY, r: rotation }
+      svg.setPointerCapture(e.pointerId)
+      pause()
+    })
+    svg.addEventListener('pointermove', (e) => {
+      if (!glisse) return
+      const k = 180 / svg.getBoundingClientRect().width
+      rotation = [glisse.r[0] + (e.clientX - glisse.x) * k, Math.max(-70, Math.min(70, glisse.r[1] - (e.clientY - glisse.y) * k))]
+      dessiner()
+    })
+    const finGlisse = () => { if (glisse) { glisse = null; if (ouvert < 0) reprendre() } }
+    svg.addEventListener('pointerup', finGlisse)
+    svg.addEventListener('pointercancel', finGlisse)
+
+    dessiner()
+    requestAnimationFrame(boucle)
+  }
+</script>

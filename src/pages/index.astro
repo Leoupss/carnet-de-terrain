@@ -1,11 +1,11 @@
 ---
-import { Image } from 'astro:assets'
 import Base from '../layouts/Base.astro'
+import Globe from '../components/Globe.astro'
 import { CATEGORIES, LIBELLES } from '../lib/categories'
 import { getEspeces } from '../lib/catalogue'
+import { regrouperLieux } from '../lib/lieux'
 
 const especes = await getEspeces()
-const recents = [...especes].sort((a, b) => b.data.ajoute.getTime() - a.data.ajoute.getTime()).slice(0, 6)
 const descriptions = {
   faune: 'Oiseaux, insectes, mammifères, reptiles — la vie animale dans son milieu.',
   flore: 'Fleurs, plantes, champignons — le monde végétal au fil des saisons.',
@@ -19,22 +19,6 @@ const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
   </section>
 
   <div class="conteneur">
-    {recents.length > 0 && (
-      <section aria-labelledby="titre-recents">
-        <h2 id="titre-recents" class="surtitre" style="margin-bottom: 1rem">Récemment ajoutées</h2>
-        <div class="recents">
-          {recents.map((e) => (
-            <a href={`/${e.categorie}/${e.slug}/`}>
-              <Image src={e.photos[0]} width={360} alt={`${e.data.nomCommun} (${e.data.nomScientifique})`} />
-            </a>
-          ))}
-        </div>
-      </section>
-    )}
-
-    <!-- Emplacement réservé au futur globe interactif. -->
-    <div id="globe"></div>
-
     <div class="sections">
       {CATEGORIES.map((c) => (
         <a class="section-carte" href={`/${c}/`}>
@@ -44,5 +28,7 @@ const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
         </a>
       ))}
     </div>
+
+    <Globe points={regrouperLieux(especes)} />
   </div>
 </Base>

@@ -19,6 +19,7 @@ const especes = defineCollection({
     ajoute: z.coerce.date(),
     lieu: z.string().optional(),
     coordonnees: z.tuple([z.number(), z.number()]).optional(),
+    positionLieu: z.tuple([z.number(), z.number()]).optional(),
     gbifKey: z.number().optional(),
     dateObservation: z.coerce.date().optional(),
     taille: z.string().optional(),

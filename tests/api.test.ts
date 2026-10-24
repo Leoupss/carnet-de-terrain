@@ -1,4 +1,4 @@
-import { it, expect, beforeEach, describe } from 'vitest'
+import { it, expect, beforeEach, afterEach, describe, vi } from 'vitest'
 import { Readable } from 'node:stream'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -60,6 +60,54 @@ it('groupe invalide → 400', async () => {
   const r = await appeler('POST', '/api/especes', { corps: { ...valide, groupe: 'Fleurs' }, origin: 'http://localhost:4321' })
   expect(r.status).toBe(400)
   expect(r.corps.erreur).toBe('Groupe invalide')
+})
+
+describe('position du lieu', () => {
+  const origin = 'http://localhost:4321'
+  const lire = async () => (await appeler('GET', '/api/especes')).corps[0].fiche
+  let requetes: string[]
+  beforeEach(() => {
+    requetes = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      requetes.push(url)
+      const q = new URL(url).searchParams.get('q')
+      const res = q === 'Martinique' ? [{ lat: '14.6', lon: '-61' }] : q === 'Paris' ? [{ lat: '48.85', lon: '2.35' }] : []
+      return { ok: true, json: async () => res }
+    }))
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('géocode le lieu à la création', async () => {
+    await appeler('POST', '/api/especes', { corps: { ...valide, lieu: 'Martinique' }, origin })
+    expect((await lire()).positionLieu).toEqual([14.6, -61])
+  })
+
+  it('re-géocode quand le lieu change, efface quand il est vidé', async () => {
+    await appeler('POST', '/api/especes', { corps: { ...valide, lieu: 'Martinique' }, origin })
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { lieu: 'Paris' }, origin })
+    expect((await lire()).positionLieu).toEqual([48.85, 2.35])
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { lieu: '' }, origin })
+    expect((await lire()).positionLieu).toBeUndefined()
+  })
+
+  it('ne re-géocode pas un lieu inchangé déjà positionné', async () => {
+    await appeler('POST', '/api/especes', { corps: { ...valide, lieu: 'Martinique' }, origin })
+    requetes = []
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { lieu: 'Martinique', taille: '1 m' }, origin })
+    expect(requetes).toEqual([])
+  })
+
+  it('une position saisie à la main l’emporte', async () => {
+    await appeler('POST', '/api/especes', { corps: { ...valide, lieu: 'Martinique' }, origin })
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { lieu: 'Paris', positionLieu: '14.7, -61.1' }, origin })
+    expect((await lire()).positionLieu).toEqual([14.7, -61.1])
+  })
+
+  it('position invalide → 400', async () => {
+    await appeler('POST', '/api/especes', { corps: valide, origin })
+    const r = await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { positionLieu: '200, 3' }, origin })
+    expect(r.status).toBe(400)
+  })
 })
 
 it('route inconnue → 404', async () => {

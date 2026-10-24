@@ -11,4 +11,7 @@ poids: 5–10 g
 habitat: Forêts tropicales, jardins et zones urbaines — endémique de la Martinique
 regime: Insectivore
 statutUicn: LC
+positionLieu:
+  - 14.67105
+  - -61.09197
 ---

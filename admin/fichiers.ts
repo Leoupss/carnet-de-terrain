@@ -12,7 +12,10 @@ export type Fiche = {
   groupe: string
   ajoute: string
   lieu?: string
+  /** GPS de la photo (exact, jamais affiché tel quel). */
   coordonnees?: [number, number]
+  /** Position approximative déduite du lieu saisi (géocodage). */
+  positionLieu?: [number, number]
   gbifKey?: number
   dateObservation?: string
   taille?: string
@@ -97,6 +100,10 @@ async function dossierEspece(racine: string, categorie: Categorie, slug: string)
   return dossier
 }
 
+export async function lireFicheEspece(racine: string, categorie: Categorie, slug: string): Promise<Fiche> {
+  return lireFiche(await dossierEspece(racine, categorie, slug))
+}
+
 export async function listerEspeces(racine: string): Promise<EspeceAdmin[]> {
   const toutes: EspeceAdmin[] = []
   for (const categorie of CATEGORIES) {
@@ -138,7 +145,7 @@ export async function creerEspece(
 
 export async function modifierFiche(
   racine: string, categorie: Categorie, slug: string,
-  champs: Partial<Pick<Fiche, ChampModifiable | 'coordonnees'>>,
+  champs: Partial<Pick<Fiche, ChampModifiable | 'coordonnees' | 'positionLieu'>>,
 ): Promise<Fiche> {
   const dossier = await dossierEspece(racine, categorie, slug)
   verifierChamps(categorie, champs)

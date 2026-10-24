@@ -282,11 +282,14 @@ function afficherDetail(x) {
   const groupe = el('select', { id: 'd-groupe' })
   remplirGroupes(groupe, x.categorie, x.fiche.groupe)
   const lieu = el('input', { value: x.fiche.lieu ?? '', id: 'd-lieu' })
+  const position = el('input', { value: x.fiche.positionLieu?.join(', ') ?? '', id: 'd-position', placeholder: 'calculée depuis le lieu' })
   const retour = el('p', { 'aria-live': 'polite', class: 'aide' })
 
   const enregistrer = async () => {
     try {
-      await api(base, json('PATCH', { ...lireDetails('d'), nomCommun: nomCommun.value, groupe: groupe.value, lieu: lieu.value }))
+      await api(base, json('PATCH', {
+        ...lireDetails('d'), nomCommun: nomCommun.value, groupe: groupe.value, lieu: lieu.value, positionLieu: position.value,
+      }))
       await chargerCatalogue()
       // Le panneau vient d'être redessiné : on écrit dans le nouveau.
       $('#detail [aria-live]').textContent = 'Modifications enregistrées.'
@@ -310,9 +313,16 @@ function afficherDetail(x) {
     el('div', { class: 'ligne', style: 'margin-top:1rem' },
       el('div', { class: 'champ' }, el('label', { for: 'd-nom' }, 'Nom commun'), nomCommun),
       el('div', { class: 'champ' }, el('label', { for: 'd-groupe' }, 'Groupe'), groupe)),
-    el('div', { class: 'champ' }, el('label', { for: 'd-lieu' }, 'Lieu'), lieu),
+    el('div', { class: 'ligne' },
+      el('div', { class: 'champ' }, el('label', { for: 'd-lieu' }, 'Lieu'), lieu),
+      el('div', { class: 'champ' },
+        el('label', { for: 'd-position' }, 'Position sur le globe ', el('span', { class: 'aide' }, '(latitude, longitude)')), position)),
+    x.fiche.coordonnees
+      ? el('p', { class: 'aide' }, `GPS de la photo : ${x.fiche.coordonnees.join(', ')} — utilisé en priorité sur le globe.`)
+      : x.fiche.lieu && !x.fiche.positionLieu
+        ? el('p', { class: 'aide' }, 'Lieu introuvable sur la carte : précise-le ou saisis la position à la main.')
+        : null,
     champsDetails('d', x.fiche),
-    x.fiche.coordonnees ? el('p', { class: 'aide' }, `GPS : ${x.fiche.coordonnees.join(', ')}`) : null,
     el('div', { class: 'actions' }, el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer')),
     retour,
     el('div', { class: 'vignettes' }, x.photos.map((nom) => el('div', { class: 'vignette' },
