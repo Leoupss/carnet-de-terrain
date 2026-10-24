@@ -1,0 +1,68 @@
+---
+import Base from '../../layouts/Base.astro'
+import CarteEspece from '../../components/CarteEspece.astro'
+import { CATEGORIES, GROUPES, LIBELLES, type Categorie } from '../../lib/categories'
+import { getEspeces } from '../../lib/catalogue'
+
+export function getStaticPaths() {
+  return CATEGORIES.map((categorie) => ({ params: { categorie } }))
+}
+
+const categorie = Astro.params.categorie as Categorie
+const especes = await getEspeces(categorie)
+const presents = GROUPES[categorie].filter((g) => especes.some((e) => e.data.groupe === g))
+const titre = LIBELLES[categorie]
+---
+<Base titre={titre}>
+  <div class="conteneur">
+    <header class="tete">
+      <h1>{titre}</h1>
+      <p class="sous-titre">{especes.length} espèce{especes.length > 1 ? 's' : ''}</p>
+    </header>
+
+    {especes.length > 0 && (
+      <div class="filtres">
+        <button class="filtre" type="button" data-groupe="" aria-pressed="true">Tous</button>
+        {presents.map((g) => <button class="filtre" type="button" data-groupe={g} aria-pressed="false">{g}</button>)}
+        <input class="recherche" type="search" placeholder="Rechercher une espèce" aria-label="Rechercher une espèce" />
+      </div>
+    )}
+
+    <div class="grille" id="grille">
+      {especes.map((e) => <CarteEspece espece={e} />)}
+    </div>
+    <p class="vide" id="vide" hidden={especes.length > 0}>
+      {especes.length > 0 ? 'Aucune espèce trouvée.' : 'Aucune espèce pour le moment.'}
+    </p>
+  </div>
+</Base>
+
+<script>
+  const cartes = [...document.querySelectorAll<HTMLElement>('#grille .carte')]
+  const boutons = [...document.querySelectorAll<HTMLButtonElement>('.filtre')]
+  const recherche = document.querySelector<HTMLInputElement>('.recherche')
+  const vide = document.getElementById('vide')!
+  let groupe = ''
+
+  const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+  function appliquer() {
+    const q = sansAccent(recherche?.value.trim() ?? '')
+    let visibles = 0
+    for (const c of cartes) {
+      const ok = (!groupe || c.dataset.groupe === groupe) && sansAccent(c.dataset.nom ?? '').includes(q)
+      c.hidden = !ok
+      if (ok) visibles++
+    }
+    if (cartes.length) vide.hidden = visibles > 0
+  }
+
+  for (const b of boutons) {
+    b.addEventListener('click', () => {
+      groupe = b.dataset.groupe ?? ''
+      boutons.forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+      appliquer()
+    })
+  }
+  recherche?.addEventListener('input', appliquer)
+</script>

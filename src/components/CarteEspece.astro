@@ -1,0 +1,14 @@
+---
+import { Image } from 'astro:assets'
+import type { Espece } from '../lib/catalogue'
+
+interface Props { espece: Espece }
+const { espece } = Astro.props
+const { nomCommun, nomScientifique, groupe } = espece.data
+---
+<a class="carte" href={`/${espece.categorie}/${espece.slug}/`}
+   data-nom={`${nomCommun} ${nomScientifique}`.toLowerCase()} data-groupe={groupe}>
+  <Image src={espece.photos[0]} width={440} alt={`${nomCommun} (${nomScientifique})`} loading="lazy" />
+  <div class="carte-nom">{nomCommun}</div>
+  <div class="carte-sci"><em>{nomScientifique}</em></div>
+</a>

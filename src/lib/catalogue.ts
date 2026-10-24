@@ -1,0 +1,27 @@
+import { getCollection, type CollectionEntry } from 'astro:content'
+import type { ImageMetadata } from 'astro'
+import type { Categorie } from './categories'
+import { regrouperPhotos } from './regrouper'
+
+export type Espece = {
+  categorie: Categorie
+  slug: string
+  data: CollectionEntry<'especes'>['data']
+  photos: ImageMetadata[]
+}
+
+const photos = regrouperPhotos(
+  import.meta.glob<ImageMetadata>('/src/content/especes/**/*.{jpg,jpeg,png,webp}', { eager: true, import: 'default' }),
+)
+
+export async function getEspeces(categorie?: Categorie): Promise<Espece[]> {
+  const entrees = await getCollection('especes')
+  return entrees
+    .map((e) => {
+      const [cat, slug] = e.id.split('/') as [Categorie, string]
+      return { categorie: cat, slug, data: e.data, photos: photos.get(e.id) ?? [] }
+    })
+    // Une fiche sans photo (envoi interrompu) reste invisible.
+    .filter((e) => e.photos.length > 0 && (!categorie || e.categorie === categorie))
+    .sort((a, b) => a.data.nomCommun.localeCompare(b.data.nomCommun, 'fr'))
+}

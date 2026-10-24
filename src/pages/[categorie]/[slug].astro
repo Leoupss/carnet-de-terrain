@@ -1,0 +1,77 @@
+---
+import { Image, getImage } from 'astro:assets'
+import Base from '../../layouts/Base.astro'
+import { LIBELLES } from '../../lib/categories'
+import { getEspeces, type Espece } from '../../lib/catalogue'
+
+export async function getStaticPaths() {
+  const especes = await getEspeces()
+  return especes.map((espece) => ({ params: { categorie: espece.categorie, slug: espece.slug }, props: { espece } }))
+}
+
+const { espece } = Astro.props as { espece: Espece }
+const { nomCommun, nomScientifique, groupe } = espece.data
+const alt = `${nomCommun} (${nomScientifique})`
+const grandes = await Promise.all(espece.photos.map((p) => getImage({ src: p, width: 2000 })))
+---
+<Base titre={nomCommun} description={`${alt} — photographies de Léo LUCAS`}>
+  <div class="conteneur">
+    <header class="tete">
+      <p class="surtitre"><a href={`/${espece.categorie}/`}>{LIBELLES[espece.categorie]}</a></p>
+      <h1>{nomCommun}</h1>
+      <p class="sous-titre"><em>{nomScientifique}</em></p>
+      <span class="groupe">{groupe}</span>
+    </header>
+
+    <div class="galerie">
+      {espece.photos.map((p, i) => (
+        <button type="button" data-index={i} data-grande={grandes[i].src} aria-label={`Agrandir la photo ${i + 1} sur ${espece.photos.length}`}>
+          <Image src={p} width={800} alt={alt} loading={i < 2 ? 'eager' : 'lazy'} />
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <dialog class="lightbox" aria-label="Photo en grand">
+    <img alt={alt} />
+    <button class="lb-btn lb-fermer" type="button" aria-label="Fermer">×</button>
+    {espece.photos.length > 1 && <>
+      <button class="lb-btn lb-prec" type="button" aria-label="Photo précédente">‹</button>
+      <button class="lb-btn lb-suiv" type="button" aria-label="Photo suivante">›</button>
+    </>}
+  </dialog>
+</Base>
+
+<script>
+  const vignettes = [...document.querySelectorAll<HTMLButtonElement>('.galerie button')]
+  const dialog = document.querySelector<HTMLDialogElement>('.lightbox')!
+  const img = dialog.querySelector('img')!
+  let index = 0
+
+  function montrer(i: number) {
+    index = (i + vignettes.length) % vignettes.length
+    img.src = vignettes[index].dataset.grande!
+  }
+
+  vignettes.forEach((v, i) => v.addEventListener('click', () => { montrer(i); dialog.showModal() }))
+  dialog.querySelector('.lb-fermer')!.addEventListener('click', () => dialog.close())
+  dialog.querySelector('.lb-prec')?.addEventListener('click', () => montrer(index - 1))
+  dialog.querySelector('.lb-suiv')?.addEventListener('click', () => montrer(index + 1))
+  // Clic sur le fond (hors image et boutons) : fermer.
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close() })
+  // Échap est géré nativement par <dialog> ; on rend le focus à la vignette.
+  dialog.addEventListener('close', () => vignettes[index]?.focus())
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') montrer(index - 1)
+    if (e.key === 'ArrowRight') montrer(index + 1)
+  })
+
+  let departX: number | null = null
+  dialog.addEventListener('touchstart', (e) => { departX = e.touches[0].clientX }, { passive: true })
+  dialog.addEventListener('touchend', (e) => {
+    if (departX === null) return
+    const dx = e.changedTouches[0].clientX - departX
+    if (Math.abs(dx) > 50 && vignettes.length > 1) montrer(index + (dx < 0 ? 1 : -1))
+    departX = null
+  })
+</script>
