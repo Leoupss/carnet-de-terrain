@@ -1,0 +1,9 @@
+// Déploiement Cloudflare Workers : sert le site statique construit dans dist/.
+{
+  "name": "carnet-de-terrain",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
