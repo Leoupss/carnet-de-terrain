@@ -42,7 +42,54 @@ const DETAILS = [
   { cle: 'description', label: 'Description / mon observation', type: 'textarea', large: true },
 ]
 
+const CHAMPS_AIDE = ['taille', 'poids', 'regime', 'floraison', 'habitat']
+
 function champsDetails(prefixe, valeurs = {}) {
+  return el('div', {},
+    el('div', { class: 'aide-wiki', id: `${prefixe}-aide` },
+      el('button', { type: 'button', onclick: () => chargerAide(prefixe) }, 'Aide Wikipédia'),
+      el('span', { class: 'aide' }, ' propose des phrases de l’article pour chaque champ — à toi de choisir et raccourcir.')),
+    grilleDetails(prefixe, valeurs))
+}
+
+/** Phrases Wikipédia sous chaque champ ; un clic copie la phrase dans le champ, à raccourcir ensuite. */
+async function chargerAide(prefixe) {
+  const sci = (prefixe === 'a' ? $('#nomScientifique').value : selection?.fiche.nomScientifique)?.trim()
+  const commun = (prefixe === 'a' ? $('#nomCommun') : $('#d-nom'))?.value.trim()
+  const zone = $(`#${prefixe}-aide`)
+  if (!sci) return remplacer(zone, el('span', { class: 'aide' }, 'Choisis d’abord l’espèce.'))
+  remplacer(zone, el('span', { class: 'aide' }, 'Recherche sur Wikipédia…'))
+  for (const cle of CHAMPS_AIDE) $(`#${prefixe}-${cle}-sugg`).replaceChildren()
+  let a
+  try {
+    a = await api(`/aide?sci=${enc(sci)}&commun=${enc(commun ?? '')}`)
+  } catch (e) {
+    return remplacer(zone, el('span', { class: 'aide' }, e.message))
+  }
+  const trouvees = CHAMPS_AIDE.reduce((n, cle) => n + a.extraits[cle].length, 0)
+  remplacer(zone,
+    a.url ? el('a', { href: a.url, target: '_blank', rel: 'noopener' }, `Wikipédia : ${a.titre}`) : el('span', { class: 'aide' }, 'Pas d’article Wikipédia en français.'),
+    a.inaturalist ? el('a', { href: a.inaturalist, target: '_blank', rel: 'noopener' }, 'iNaturalist') : null,
+    a.url ? el('span', { class: 'aide' }, trouvees ? `${trouvees} phrase(s) proposée(s) sous les champs.` : 'Aucune phrase utile trouvée.') : null,
+    // GBIF propose parfois un nom vieilli (« Goupil ») : le titre Wikipédia est souvent le nom usuel.
+    a.titre && a.titre !== sci && a.titre !== commun
+      ? el('button', { type: 'button', class: 'suggestion', onclick: (e) => {
+          ;(prefixe === 'a' ? $('#nomCommun') : $('#d-nom')).value = a.titre
+          e.currentTarget.remove()
+        } }, `Nom commun : « ${a.titre} » ?`)
+      : null,
+  )
+  for (const cle of CHAMPS_AIDE) {
+    $(`#${prefixe}-${cle}-sugg`).replaceChildren(...a.extraits[cle].map((p) =>
+      el('button', { type: 'button', class: 'suggestion', title: 'Copier dans le champ', onclick: () => {
+        const champ = $(`#${prefixe}-${cle}`)
+        champ.value = p
+        champ.focus()
+      } }, p)))
+  }
+}
+
+function grilleDetails(prefixe, valeurs) {
   return el('div', { class: 'grille-details' }, DETAILS.map((c) => {
     const id = `${prefixe}-${c.cle}`
     const v = valeurs[c.cle] ?? ''
@@ -51,7 +98,8 @@ function champsDetails(prefixe, valeurs = {}) {
       : c.type === 'textarea'
         ? Object.assign(el('textarea', { id, placeholder: 'Ce que tu as observé, le comportement, le contexte de la photo…' }), { value: v })
         : el('input', { id, type: c.type ?? 'text', value: v, placeholder: c.exemple })
-    return el('div', { class: `champ${c.large ? ' large' : ''}` }, el('label', { for: id }, c.label), saisie)
+    return el('div', { class: `champ${c.large ? ' large' : ''}` }, el('label', { for: id }, c.label), saisie,
+      CHAMPS_AIDE.includes(c.cle) ? el('div', { class: 'suggestions', id: `${id}-sugg` }) : null)
   }))
 }
 const lireDetails = (prefixe) => Object.fromEntries(DETAILS.map((c) => [c.cle, $(`#${prefixe}-${c.cle}`).value]))
@@ -140,6 +188,8 @@ async function choisir(i) {
     etatGbif.textContent = e.message
   }
   verifierExistant()
+  // Espèce choisie : on prépare les phrases Wikipédia sans attendre un clic.
+  chargerAide('a')
 }
 
 /* ---------- Ajouter : espèce déjà présente ? ---------- */

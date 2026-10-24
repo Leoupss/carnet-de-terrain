@@ -7,6 +7,7 @@ import { estCategorie, GROUPES, type Categorie } from '../src/lib/categories'
 import * as fichiers from './fichiers'
 import { suggerer, details } from './gbif'
 import { geocoder } from './geocodage'
+import { aideSaisie } from './wikipedia'
 import { resume, publier } from './publier'
 
 const UI = fileURLToPath(new URL('./ui/', import.meta.url))
@@ -102,6 +103,11 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
     const r = seg.slice(1)
 
     if (m === 'GET' && r[0] === 'config' && r.length === 1) return { groupes: GROUPES }
+    if (m === 'GET' && r[0] === 'aide' && r.length === 1) {
+      const sci = url.searchParams.get('sci')?.trim()
+      if (!sci) throw new ErreurHttp(400, 'Nom scientifique requis')
+      return aideSaisie(sci, url.searchParams.get('commun') ?? undefined)
+    }
     if (m === 'GET' && r[0] === 'gbif' && r[1] === 'suggest') return suggerer(url.searchParams.get('q') ?? '')
     if (m === 'GET' && r[0] === 'gbif' && r[1] === 'espece' && r[2]) return details(Number(r[2]))
 
