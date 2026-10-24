@@ -14,17 +14,35 @@ export async function getStaticPaths() {
 const { espece } = Astro.props as { espece: Espece }
 const d = espece.data
 const alt = `${d.nomCommun} (${d.nomScientifique})`
-const [principale, ...autres] = espece.photos
-const grandes = await Promise.all(espece.photos.map((p) => getImage({ src: p, width: 2000 })))
 const { Content } = await render(espece.entree)
 const aDescription = Boolean(espece.entree.body?.trim())
+const formaterDate = (x?: Date) => x?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) ?? ''
+
+const SIZES = '(max-width: 960px) 100vw, 640px'
+// Par photo : ses images (grande + plein écran) et ses infos, à défaut celles de l'espèce.
+const photos = await Promise.all(espece.photos.map(async (p) => {
+  const principale = await getImage({ src: p.image, widths: [600, 900, 1300], sizes: SIZES })
+  const pleinEcran = await getImage({ src: p.image, width: 2000 })
+  const infos = d.photos?.[p.nom]
+  return {
+    image: p.image,
+    src: principale.src,
+    srcset: principale.srcSet.attribute,
+    grande: pleinEcran.src,
+    legende: infos?.legende ?? '',
+    lieu: infos?.lieu ?? d.lieu ?? '',
+    date: formaterDate(infos?.date ?? d.dateObservation),
+  }
+}))
+const [premiere] = photos
+const plusieurs = photos.length > 1
 
 const scientifiques = [
   ['Taille', d.taille], ['Poids', d.poids], ['Habitat', d.habitat], ['Floraison', d.floraison], ['Régime', d.regime],
 ].filter((l): l is [string, string] => Boolean(l[1]))
-const date = d.dateObservation?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-const observation = [['Lieu', d.lieu], ['Date', date]].filter((l): l is [string, string] => Boolean(l[1]))
+const aObservation = photos.some((p) => p.lieu || p.date) || aDescription
 const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}`
+const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ src, srcset, grande, legende, lieu, date }))
 ---
 <Base titre={d.nomCommun} description={`${alt} — photographies de Léo LUCAS`}>
   <div class="conteneur fiche">
@@ -36,16 +54,21 @@ const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}
     </nav>
 
     <div class="fiche-mise-en-page">
-      <div class="fiche-photos">
-        <button type="button" class="photo-principale" data-index="0" data-grande={grandes[0].src} aria-label="Agrandir la photo">
-          <Image src={principale} widths={[600, 900, 1300]} sizes="(max-width: 960px) 100vw, 640px" alt={alt} loading="eager" />
-          <span class="copyright" aria-hidden="true">© Léo LUCAS</span>
-        </button>
-        {autres.length > 0 && (
-          <div class="fiche-autres">
-            {autres.map((p, i) => (
-              <button type="button" data-index={i + 1} data-grande={grandes[i + 1].src} aria-label={`Agrandir la photo ${i + 2} sur ${espece.photos.length}`}>
-                <Image src={p} width={400} alt={alt} loading="lazy" />
+      <div class="fiche-photos" data-photos={JSON.stringify(donnees)}>
+        <figure>
+          <button type="button" class="photo-principale" aria-label="Agrandir la photo">
+            <img src={premiere.src} srcset={premiere.srcset} sizes={SIZES} alt={alt}
+                 width={premiere.image.width} height={premiere.image.height} loading="eager" decoding="async" />
+            <span class="copyright" aria-hidden="true">© Léo LUCAS</span>
+          </button>
+          <figcaption class="photo-legende" hidden={!premiere.legende}>{premiere.legende}</figcaption>
+        </figure>
+        {plusieurs && (
+          <div class="fiche-autres" role="group" aria-label="Choisir la photo affichée">
+            {photos.map((p, i) => (
+              <button type="button" data-index={i} aria-pressed={i === 0 ? 'true' : 'false'}
+                      aria-label={`Afficher la photo ${i + 1} sur ${photos.length}${p.legende ? ` : ${p.legende}` : ''}`}>
+                <Image src={p.image} width={400} alt="" loading="lazy" />
               </button>
             ))}
           </div>
@@ -68,15 +91,14 @@ const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}
           </section>
         </>}
 
-        {(observation.length > 0 || aDescription) && <>
+        {aObservation && <>
           <div class="ornement" aria-hidden="true"></div>
-          <section>
+          <section aria-live="polite">
             <h2 class="fiche-section">Mon observation</h2>
-            {observation.length > 0 && (
-              <dl class="fiche-meta">
-                {observation.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
-              </dl>
-            )}
+            <dl class="fiche-meta">
+              <div data-champ="lieu" hidden={!premiere.lieu}><dt>Lieu</dt><dd>{premiere.lieu}</dd></div>
+              <div data-champ="date" hidden={!premiere.date}><dt>Date</dt><dd>{premiere.date}</dd></div>
+            </dl>
             {aDescription && <div class="fiche-description"><Content /></div>}
           </section>
         </>}
@@ -87,7 +109,7 @@ const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}
   <dialog class="lightbox" aria-label="Photo en grand">
     <img alt={alt} />
     <button class="lb-btn lb-fermer" type="button" aria-label="Fermer">×</button>
-    {espece.photos.length > 1 && <>
+    {plusieurs && <>
       <button class="lb-btn lb-prec" type="button" aria-label="Photo précédente">‹</button>
       <button class="lb-btn lb-suiv" type="button" aria-label="Photo suivante">›</button>
     </>}
@@ -95,27 +117,51 @@ const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}
 </Base>
 
 <script>
-  const vignettes = [...document.querySelectorAll<HTMLButtonElement>('.fiche-photos button')]
+  type DonneesPhoto = { src: string; srcset: string; grande: string; legende: string; lieu: string; date: string }
+  const zone = document.querySelector<HTMLElement>('.fiche-photos')!
+  const photos: DonneesPhoto[] = JSON.parse(zone.dataset.photos ?? '[]')
+  const principale = zone.querySelector<HTMLButtonElement>('.photo-principale')!
+  const imgPrincipale = principale.querySelector('img')!
+  const legende = zone.querySelector<HTMLElement>('.photo-legende')!
+  const vignettes = [...zone.querySelectorAll<HTMLButtonElement>('.fiche-autres button')]
   const dialog = document.querySelector<HTMLDialogElement>('.lightbox')!
-  const img = dialog.querySelector('img')!
-  let index = 0
+  const imgGrande = dialog.querySelector('img')!
+  let courante = 0
+  let enGrand = 0
+
+  // Vignette → grande photo, et les infos de l'observation suivent la photo.
+  function afficher(i: number) {
+    courante = i
+    const p = photos[i]
+    imgPrincipale.srcset = p.srcset
+    imgPrincipale.src = p.src
+    legende.textContent = p.legende
+    legende.hidden = !p.legende
+    for (const champ of ['lieu', 'date'] as const) {
+      const ligne = document.querySelector<HTMLElement>(`[data-champ="${champ}"]`)
+      if (!ligne) continue
+      ligne.querySelector('dd')!.textContent = p[champ]
+      ligne.hidden = !p[champ]
+    }
+    vignettes.forEach((v, j) => v.setAttribute('aria-pressed', String(j === i)))
+  }
+  vignettes.forEach((v, i) => v.addEventListener('click', () => afficher(i)))
 
   function montrer(i: number) {
-    index = (i + vignettes.length) % vignettes.length
-    img.src = vignettes[index].dataset.grande!
+    enGrand = (i + photos.length) % photos.length
+    imgGrande.src = photos[enGrand].grande
   }
-
-  vignettes.forEach((v, i) => v.addEventListener('click', () => { montrer(i); dialog.showModal() }))
+  principale.addEventListener('click', () => { montrer(courante); dialog.showModal() })
   dialog.querySelector('.lb-fermer')!.addEventListener('click', () => dialog.close())
-  dialog.querySelector('.lb-prec')?.addEventListener('click', () => montrer(index - 1))
-  dialog.querySelector('.lb-suiv')?.addEventListener('click', () => montrer(index + 1))
+  dialog.querySelector('.lb-prec')?.addEventListener('click', () => montrer(enGrand - 1))
+  dialog.querySelector('.lb-suiv')?.addEventListener('click', () => montrer(enGrand + 1))
   // Clic sur le fond (hors image et boutons) : fermer.
   dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close() })
-  // Échap est géré nativement par <dialog> ; on rend le focus à la vignette.
-  dialog.addEventListener('close', () => vignettes[index]?.focus())
+  // En sortant du plein écran, la grande photo reprend celle qu'on regardait.
+  dialog.addEventListener('close', () => { afficher(enGrand); principale.focus() })
   dialog.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') montrer(index - 1)
-    if (e.key === 'ArrowRight') montrer(index + 1)
+    if (e.key === 'ArrowLeft') montrer(enGrand - 1)
+    if (e.key === 'ArrowRight') montrer(enGrand + 1)
   })
 
   let departX: number | null = null
@@ -123,7 +169,7 @@ const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}
   dialog.addEventListener('touchend', (e) => {
     if (departX === null) return
     const dx = e.changedTouches[0].clientX - departX
-    if (Math.abs(dx) > 50 && vignettes.length > 1) montrer(index + (dx < 0 ? 1 : -1))
+    if (Math.abs(dx) > 50 && photos.length > 1) montrer(enGrand + (dx < 0 ? 1 : -1))
     departX = null
   })
 </script>

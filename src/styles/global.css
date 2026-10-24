@@ -91,7 +91,12 @@ em { font-style: italic; }
 .photo-principale img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .12); }
 .copyright { position: absolute; bottom: .5rem; right: .55rem; font-size: .62rem; color: rgba(255, 255, 255, .75); letter-spacing: .04em; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); pointer-events: none; user-select: none; }
 .fiche-autres { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .6rem; margin-top: .75rem; }
+.fiche-autres button { cursor: pointer; border-radius: 6px; outline: 2px solid transparent; outline-offset: 2px; opacity: .7; transition: opacity .15s; }
+.fiche-autres button:hover, .fiche-autres button[aria-pressed="true"] { opacity: 1; }
+.fiche-autres button[aria-pressed="true"] { outline-color: var(--gold); }
 .fiche-autres img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+.fiche-photos figure { margin: 0; }
+.photo-legende { margin-top: .5rem; font-family: var(--font-serif); font-style: italic; color: var(--text-muted); }
 
 .badge { display: inline-block; padding: .15rem .6rem; border-radius: 20px; font-size: .7rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border: 1px solid currentColor; text-decoration: none; color: var(--green-mid); margin-bottom: 1rem; }
 .badge-oiseaux, .badge-plantes { color: var(--green-forest); }

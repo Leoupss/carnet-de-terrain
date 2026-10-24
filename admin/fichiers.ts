@@ -26,7 +26,10 @@ export type Fiche = {
   statutUicn?: string
   /** Texte libre, écrit sous le frontmatter de fiche.md. */
   description?: string
+  /** Infos propres à une photo (clé = nom du fichier) ; à défaut, la page reprend celles de l'espèce. */
+  photos?: Record<string, InfosPhoto>
 }
+export type InfosPhoto = { legende?: string; date?: string; lieu?: string }
 export type EspeceAdmin = { categorie: Categorie; slug: string; fiche: Fiche; photos: string[] }
 
 /** Champs modifiables depuis l'admin (en plus de coordonnees, géré par le GPS). */
@@ -70,7 +73,20 @@ async function ecrireFiche(dossier: string, fiche: Fiche): Promise<void> {
   // Écriture puis renommage : une coupure ne laisse jamais une fiche à moitié écrite.
   const tmp = join(dossier, 'fiche.md.tmp')
   await writeFile(tmp, `---\n${YAML.stringify(propre)}---\n${corps}`)
-  await rename(tmp, join(dossier, 'fiche.md'))
+  await renommerAvecReprise(tmp, join(dossier, 'fiche.md'))
+}
+
+// Windows : le serveur de dev relit la fiche et la verrouille un instant (EPERM/EBUSY) ; on réessaie brièvement.
+async function renommerAvecReprise(de: string, vers: string): Promise<void> {
+  for (let essai = 1; ; essai++) {
+    try {
+      return await rename(de, vers)
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      if (essai >= 10 || (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES')) throw e
+      await new Promise((r) => setTimeout(r, 50 * essai))
+    }
+  }
 }
 
 function verifierChamps(categorie: Categorie, champs: Partial<Fiche>): void {
@@ -190,16 +206,40 @@ export async function ajouterPhoto(
     const ajouts: Partial<Fiche> = {}
     if (coordonnees && !fiche.coordonnees) ajouts.coordonnees = coordonnees
     if (dateObservation && !fiche.dateObservation) ajouts.dateObservation = dateObservation
-    if (Object.keys(ajouts).length) await ecrireFiche(dossier, { ...fiche, ...ajouts })
+    if (dateObservation) ajouts.photos = { ...fiche.photos, [nom]: { date: dateObservation } }
+    await ecrireFiche(dossier, { ...fiche, ...ajouts })
   }
   return { nom, coordonnees }
+}
+
+export async function modifierPhoto(
+  racine: string, categorie: Categorie, slug: string, nom: string, infos: InfosPhoto,
+): Promise<Fiche> {
+  const dossier = await dossierEspece(racine, categorie, slug)
+  const fiche = await lireFiche(dossier)
+  if (!(await readdir(dossier)).includes(nom) || !estPhoto(nom)) throw new Error('Photo introuvable')
+  if (infos.date && !/^\d{4}-\d{2}-\d{2}$/.test(infos.date)) throw new Error('Date invalide (AAAA-MM-JJ)')
+  // Un champ non envoyé (undefined) garde sa valeur ; seule une chaîne vide l'efface.
+  const envoyes = Object.fromEntries(Object.entries(infos).filter(([, v]) => v !== undefined))
+  const fusion: Record<string, string | undefined> = { ...fiche.photos?.[nom], ...envoyes }
+  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => v?.trim())) as InfosPhoto
+  const { [nom]: _ancien, ...autres } = fiche.photos ?? {}
+  const photos = Object.keys(propre).length ? { ...autres, [nom]: propre } : autres
+  const nouvelle = { ...fiche, photos: Object.keys(photos).length ? photos : undefined }
+  await ecrireFiche(dossier, nouvelle)
+  return nouvelle
 }
 
 export async function retirerPhoto(racine: string, categorie: Categorie, slug: string, nom: string): Promise<void> {
   if (!estPhoto(nom)) throw new Error('Chemin interdit')
   const p = chemin(racine, categorie, slug, nom)
-  await dossierEspece(racine, categorie, slug)
+  const dossier = await dossierEspece(racine, categorie, slug)
   await rm(p)
+  const fiche = await lireFiche(dossier)
+  if (fiche.photos?.[nom]) {
+    const { [nom]: _retiree, ...autres } = fiche.photos
+    await ecrireFiche(dossier, { ...fiche, photos: Object.keys(autres).length ? autres : undefined })
+  }
 }
 
 export async function supprimerEspece(racine: string, categorie: Categorie, slug: string): Promise<void> {

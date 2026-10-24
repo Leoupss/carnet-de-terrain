@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import exifr from 'exifr'
 import {
-  listerEspeces, creerEspece, modifierFiche, ajouterPhoto, retirerPhoto, supprimerEspece,
+  listerEspeces, creerEspece, modifierFiche, ajouterPhoto, retirerPhoto, supprimerEspece, modifierPhoto,
 } from '../admin/fichiers'
 
 const fiche = { nomScientifique: 'Vulpes vulpes', nomCommun: 'Renard roux', groupe: 'Mammifères' }
@@ -83,6 +83,14 @@ describe('ajouterPhoto', () => {
     expect((await listerEspeces(racine))[0].fiche.dateObservation).toBe('2023-03-08')
   })
 
+  it('garde la date de prise de vue de chaque photo', async () => {
+    const datee = (d: string) => sharp({ create: { width: 20, height: 20, channels: 3, background: '#fff' } }).jpeg()
+      .withExif({ IFD2: { DateTimeOriginal: d } }).toBuffer()
+    const a = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await datee('2023:03:08 10:00:00'))
+    const b = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'b.jpg', await datee('2024:01:01 10:00:00'))
+    expect((await listerEspeces(racine))[0].fiche.photos).toEqual({ [a.nom]: { date: '2023-03-08' }, [b.nom]: { date: '2024-01-01' } })
+  })
+
   it('refuse une espèce inexistante', async () => {
     await expect(ajouterPhoto(racine, 'faune', 'inconnue', 'a.jpg', await jpeg())).rejects.toThrow('Espèce introuvable')
   })
@@ -120,6 +128,34 @@ describe('modifier, retirer, supprimer', () => {
   it('retirerPhoto refuse de sortir du dossier', async () => {
     await expect(retirerPhoto(racine, 'faune', 'vulpes-vulpes', '../fiche.md')).rejects.toThrow('Chemin interdit')
     await expect(retirerPhoto(racine, 'faune', 'vulpes-vulpes', 'fiche.md')).rejects.toThrow('Chemin interdit')
+  })
+
+  it('modifierPhoto règle légende, date et lieu d’une photo ; un champ vidé disparaît', async () => {
+    const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle', date: '2024-05-30', lieu: 'Jura' })
+    expect((await listerEspeces(racine))[0].fiche.photos).toEqual({ [nom]: { legende: 'Mâle', date: '2024-05-30', lieu: 'Jura' } })
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: '', date: '', lieu: '' })
+    expect((await listerEspeces(racine))[0].fiche.photos).toBeUndefined()
+  })
+
+  it('modifierPhoto ne touche pas aux champs non envoyés', async () => {
+    const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle', lieu: 'Jura' })
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Juvénile', lieu: undefined })
+    expect((await listerEspeces(racine))[0].fiche.photos?.[nom]).toEqual({ legende: 'Juvénile', lieu: 'Jura' })
+  })
+
+  it('modifierPhoto refuse une photo absente et une date mal formée', async () => {
+    const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
+    await expect(modifierPhoto(racine, 'faune', 'vulpes-vulpes', 'inconnue.jpg', { legende: 'x' })).rejects.toThrow('Photo introuvable')
+    await expect(modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { date: '30/05/2024' })).rejects.toThrow('Date invalide')
+  })
+
+  it('retirerPhoto efface aussi les infos de la photo', async () => {
+    const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle' })
+    await retirerPhoto(racine, 'faune', 'vulpes-vulpes', nom)
+    expect((await listerEspeces(racine))[0].fiche.photos).toBeUndefined()
   })
 
   it('retirerPhoto puis supprimerEspece', async () => {

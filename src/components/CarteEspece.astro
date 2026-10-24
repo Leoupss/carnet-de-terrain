@@ -8,7 +8,7 @@ const { nomCommun, nomScientifique, groupe } = espece.data
 ---
 <a class="carte" href={`/${espece.categorie}/${espece.slug}/`}
    data-nom={`${nomCommun} ${nomScientifique}`.toLowerCase()} data-groupe={groupe}>
-  <Image src={espece.photos[0]} width={440} alt={`${nomCommun} (${nomScientifique})`} loading="lazy" />
+  <Image src={espece.photos[0].image} width={440} alt={`${nomCommun} (${nomScientifique})`} loading="lazy" />
   <div class="carte-nom">{nomCommun}</div>
   <div class="carte-sci"><em>{nomScientifique}</em></div>
 </a>

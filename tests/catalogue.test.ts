@@ -10,7 +10,7 @@ it('regroupe les photos par espèce, triées par nom', () => {
     '/src/content/especes/faune/vulpes-vulpes/a.jpg': A,
     '/src/content/especes/flore/papaver-rhoeas/x.webp': X,
   })
-  expect(g.get('faune/vulpes-vulpes')).toEqual([A, B])
-  expect(g.get('flore/papaver-rhoeas')).toEqual([X])
+  expect(g.get('faune/vulpes-vulpes')).toEqual([{ nom: 'a.jpg', image: A }, { nom: 'b.jpg', image: B }])
+  expect(g.get('flore/papaver-rhoeas')).toEqual([{ nom: 'x.webp', image: X }])
   expect(g.has('faune/sans-photo')).toBe(false)
 })

@@ -14,4 +14,9 @@ ajoute: 2026-10-24
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  shama-dayal-male.webp:
+    legende: Mâle
+  shama-dayal.webp:
+    legende: Juvénile
 ---

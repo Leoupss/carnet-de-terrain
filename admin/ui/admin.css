@@ -35,6 +35,13 @@ textarea { font: inherit; padding: .5rem .7rem; border: 1px solid var(--cream-da
 .suggestions:empty { display: none; }
 .suggestion { text-align: left; font-size: .8rem; line-height: 1.35; padding: .35rem .55rem; background: #F2F7F1; border: 1px dashed var(--green-mid); color: var(--text-dark); }
 .suggestion:hover { background: #E4EFE2; }
+.titre-photos { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 .75rem; }
+.photos-admin { display: grid; gap: .9rem; }
+.photo-admin { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: .9rem; align-items: start; border: 1px solid var(--cream-dark); border-radius: 6px; padding: .7rem; }
+.photo-admin img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+.photo-admin .champ { margin-bottom: .5rem; }
+.photo-admin .actions { margin-top: .25rem; align-items: center; }
+@media (max-width: 600px) { .photo-admin { grid-template-columns: 1fr; } .photo-admin img { aspect-ratio: 4 / 3; } }
 .grille-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 1rem; }
 .grille-details .large { grid-column: 1 / -1; }
 

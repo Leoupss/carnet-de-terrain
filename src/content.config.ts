@@ -28,6 +28,11 @@ const especes = defineCollection({
     floraison: z.string().optional(),
     regime: z.string().optional(),
     statutUicn: z.enum(['LC', 'NT', 'VU', 'EN', 'CR', 'EW', 'EX', 'DD', 'NE']).optional(),
+    photos: z.record(z.string(), z.object({
+      legende: z.string().optional(),
+      date: z.coerce.date().optional(),
+      lieu: z.string().optional(),
+    })).optional(),
   }),
 })
 

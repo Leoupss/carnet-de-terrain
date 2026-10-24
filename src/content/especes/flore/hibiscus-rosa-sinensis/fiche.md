@@ -13,4 +13,10 @@ ajoute: 2026-10-24
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  hibiscus-rosa-sinensis-rouge.webp:
+    legende: Fleur rouge
+  hibiscus-rose-de-chine.webp:
+    lieu: Jardin de Balata, Martinique
+    date: 2023-03-08
 ---

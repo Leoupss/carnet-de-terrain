@@ -1,13 +1,13 @@
 import { getCollection, type CollectionEntry } from 'astro:content'
 import type { ImageMetadata } from 'astro'
 import type { Categorie } from './categories'
-import { regrouperPhotos } from './regrouper'
+import { regrouperPhotos, type Photo } from './regrouper'
 
 export type Espece = {
   categorie: Categorie
   slug: string
   data: CollectionEntry<'especes'>['data']
-  photos: ImageMetadata[]
+  photos: Photo[]
   /** Pour `render(espece.entree)` : la description écrite sous le frontmatter. */
   entree: CollectionEntry<'especes'>
 }

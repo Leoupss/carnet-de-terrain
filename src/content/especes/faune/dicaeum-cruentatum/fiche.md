@@ -15,4 +15,9 @@ ajoute: 2026-10-24
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  ficedula-albicilla-2.webp:
+    legende: Femelle
+  gobemouche-taiga.webp:
+    legende: Femelle
 ---

@@ -168,6 +168,11 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
           return fichiers.ajouterPhoto(racine, cat, slug, nom, await lireCorps(req))
         }
         if (r.length === 5 && m === 'DELETE') { await fichiers.retirerPhoto(racine, cat, slug, r[4]); return { ok: true } }
+        if (r.length === 5 && m === 'PATCH') {
+          const b = await lireJson(req)
+          const texte = (v: unknown) => (typeof v === 'string' ? v.trim() : undefined)
+          return fichiers.modifierPhoto(racine, cat, slug, r[4], { legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu) })
+        }
         if (r.length === 5 && m === 'GET') {
           const e = (await fichiers.listerEspeces(racine)).find((x) => x.categorie === cat && x.slug === slug)
           if (!e?.photos.includes(r[4])) throw new ErreurHttp(404, 'Photo introuvable')

@@ -375,13 +375,41 @@ function afficherDetail(x) {
     champsDetails('d', x.fiche),
     el('div', { class: 'actions' }, el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer')),
     retour,
-    el('div', { class: 'vignettes' }, x.photos.map((nom) => el('div', { class: 'vignette' },
-      el('img', { src: `${API}${base}/photos/${enc(nom)}`, alt: '', loading: 'lazy' }),
-      el('button', { type: 'button', 'aria-label': `Retirer ${nom}`, onclick: () => retirer(nom) }, '×'),
-      el('div', { class: 'nom' }, nom)))),
+    x.photos.length ? el('h3', { class: 'titre-photos' }, 'Photos ', el('span', { class: 'aide' }, '— vides, la date et le lieu reprennent ceux de l’espèce')) : null,
+    el('div', { class: 'photos-admin' }, x.photos.map((nom, i) => lignePhoto(base, x.fiche, nom, i, retirer))),
     x.photos.length ? null : el('p', { class: 'aide' }, 'Aucune photo : cette espèce n’apparaît pas sur le site.'),
     el('div', { class: 'actions' }, el('button', { type: 'button', class: 'danger', onclick: supprimer }, 'Supprimer l’espèce')),
   )
+}
+
+/** Une photo de l'espèce : aperçu, légende / date / lieu propres à la photo, enregistrer, retirer. */
+function lignePhoto(base, fiche, nom, i, retirer) {
+  const infos = fiche.photos?.[nom] ?? {}
+  const id = (c) => `p${i}-${c}`
+  const retour = el('span', { class: 'aide', 'aria-live': 'polite' })
+  const enregistrer = async () => {
+    try {
+      await api(`${base}/photos/${enc(nom)}`, json('PATCH', {
+        legende: $(`#${id('legende')}`).value, date: $(`#${id('date')}`).value, lieu: $(`#${id('lieu')}`).value,
+      }))
+      retour.textContent = 'Enregistré.'
+      rafraichirPublier()
+    } catch (e) { retour.textContent = e.message }
+  }
+  return el('div', { class: 'photo-admin' },
+    el('img', { src: `${API}${base}/photos/${enc(nom)}`, alt: '', loading: 'lazy' }),
+    el('div', { class: 'photo-admin-champs' },
+      el('div', { class: 'aide nom' }, nom),
+      el('div', { class: 'champ' }, el('label', { for: id('legende') }, 'Légende'),
+        el('input', { id: id('legende'), value: infos.legende ?? '', placeholder: 'ex. Mâle, Juvénile, Femelle en vol' })),
+      el('div', { class: 'ligne' },
+        el('div', { class: 'champ' }, el('label', { for: id('date') }, 'Date'), el('input', { id: id('date'), type: 'date', value: infos.date ?? '' })),
+        el('div', { class: 'champ' }, el('label', { for: id('lieu') }, 'Lieu'),
+          el('input', { id: id('lieu'), value: infos.lieu ?? '', placeholder: fiche.lieu ?? '' }))),
+      el('div', { class: 'actions' },
+        retour,
+        el('button', { type: 'button', class: 'danger', onclick: () => retirer(nom) }, 'Retirer'),
+        el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer la photo'))))
 }
 
 /* ---------- Publier ---------- */
