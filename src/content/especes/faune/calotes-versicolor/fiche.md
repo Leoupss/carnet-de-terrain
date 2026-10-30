@@ -21,4 +21,6 @@ positionLieu:
 photos:
   dsc00048.jpg:
     coupDeCoeur: true
+  dsc00963-2.jpg:
+    date: 2026-08-08
 ---
