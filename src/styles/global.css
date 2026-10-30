@@ -58,6 +58,10 @@ em { font-style: italic; }
 .grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
 .carte { text-decoration: none; display: block; }
 .carte img { aspect-ratio: 4 / 3; object-fit: cover; width: 100%; border-radius: 3px; background: var(--cream-mid); }
+/* Plusieurs photos : pastille « ⧉ n » dans le coin */
+.carte-photo { position: relative; }
+.nb-photos { position: absolute; z-index: 2; right: .45rem; bottom: .45rem; padding: .1rem .45rem; border-radius: 999px; font-size: .75rem; line-height: 1.4; color: #fff; background: rgba(28, 27, 24, .6); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .carte-nom { margin-top: .6rem; font-family: var(--font-serif); font-size: 1.15rem; }
 .carte-sci { color: var(--text-muted); font-size: .9rem; }
 .carte:hover .carte-nom { color: var(--green-forest); }

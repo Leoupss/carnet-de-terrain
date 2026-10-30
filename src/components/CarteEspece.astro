@@ -5,10 +5,14 @@ import type { Espece } from '../lib/catalogue'
 interface Props { espece: Espece }
 const { espece } = Astro.props
 const { nomCommun, nomScientifique, groupe } = espece.data
+const nb = espece.photos.length
 ---
 <a class="carte" href={`/${espece.categorie}/${espece.slug}/`}
    data-nom={`${nomCommun} ${nomScientifique}`.toLowerCase()} data-groupe={groupe}>
-  <Image src={espece.photos[0].image} width={440} alt={`${nomCommun} (${nomScientifique})`} loading="lazy" />
+  <div class="carte-photo">
+    <Image src={espece.photos[0].image} width={440} alt={`${nomCommun} (${nomScientifique})`} loading="lazy" />
+    {nb > 1 && <span class="nb-photos" aria-hidden="true">⧉ {nb}</span>}
+  </div>
   <div class="carte-nom">{nomCommun}</div>
-  <div class="carte-sci"><em>{nomScientifique}</em></div>
+  <div class="carte-sci"><em>{nomScientifique}</em>{nb > 1 && <span class="sr-only"> — {nb} photos</span>}</div>
 </a>
