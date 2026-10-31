@@ -32,7 +32,7 @@ const UICN = [['', '—'], ['LC', 'LC — préoccupation mineure'], ['NT', 'NT �
   ['EN', 'EN — en danger'], ['CR', 'CR — en danger critique'], ['EW', 'EW — éteinte à l’état sauvage'], ['EX', 'EX — éteinte'],
   ['DD', 'DD — données insuffisantes'], ['NE', 'NE — non évaluée']]
 const DETAILS = [
-  { cle: 'dateObservation', label: 'Date d’observation', type: 'date' },
+  { cle: 'dateObservation', label: 'Date d’observation', type: 'month' },
   { cle: 'taille', label: 'Taille', exemple: 'ex. 12–20 cm' },
   { cle: 'poids', label: 'Poids', exemple: 'ex. 5–10 g' },
   { cle: 'regime', label: 'Régime', exemple: 'ex. Insectivore' },
@@ -92,7 +92,8 @@ async function chargerAide(prefixe) {
 function grilleDetails(prefixe, valeurs) {
   return el('div', { class: 'grille-details' }, DETAILS.map((c) => {
     const id = `${prefixe}-${c.cle}`
-    const v = valeurs[c.cle] ?? ''
+    // Champ mois : une ancienne date au jour (AAAA-MM-JJ) s'affiche au mois.
+    const v = c.type === 'month' ? (valeurs[c.cle] ?? '').slice(0, 7) : valeurs[c.cle] ?? ''
     const saisie = c.type === 'uicn'
       ? el('select', { id }, UICN.map(([code, texte]) => el('option', { value: code, selected: code === v }, texte)))
       : c.type === 'textarea'
@@ -109,16 +110,55 @@ function remplirGroupes(select, categorie, choisi) {
 }
 
 /* ---------- Onglets ---------- */
-const onglets = { ajouter: $('#onglet-ajouter'), catalogue: $('#onglet-catalogue') }
+const onglets = { ajouter: $('#onglet-ajouter'), catalogue: $('#onglet-catalogue'), coeurs: $('#onglet-coeurs') }
 function montrerOnglet(nom) {
   for (const [n, b] of Object.entries(onglets)) {
     b.setAttribute('aria-selected', String(n === nom))
     $(`#panneau-${n}`).hidden = n !== nom
   }
   if (nom === 'catalogue') chargerCatalogue()
+  if (nom === 'coeurs') chargerCoeurs()
 }
-onglets.ajouter.onclick = () => montrerOnglet('ajouter')
-onglets.catalogue.onclick = () => montrerOnglet('catalogue')
+for (const nom of Object.keys(onglets)) onglets[nom].onclick = () => montrerOnglet(nom)
+
+/* ---------- Dates : stockées au mois (AAAA-MM), affichées « mai 2026 » ---------- */
+const moisAnnee = (v) => (v ? new Date(`${v.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : '')
+
+/** Mois de prise de vue lu dans l'EXIF du fichier (exifr, chargé par index.html), ou '' . */
+async function moisDePriseDeVue(fichier) {
+  try {
+    // La version « lite » d'exifr n'accepte pas de liste de champs : on lit l'EXIF entier.
+    const d = (await window.exifr?.parse(fichier))?.DateTimeOriginal
+    return d instanceof Date && !isNaN(d) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : ''
+  } catch { return '' }
+}
+
+/** Glisser-déposer pour réordonner les enfants [data-index] d'un conteneur ; `deplacer(de, vers)` fait le reste. */
+function activerGlisser(conteneur, deplacer) {
+  let depart = null
+  conteneur.addEventListener('dragstart', (e) => {
+    const t = e.target.closest('[data-index]')
+    if (!t) return
+    depart = Number(t.dataset.index)
+    e.dataTransfer.effectAllowed = 'move'
+    t.classList.add('glisse')
+  })
+  conteneur.addEventListener('dragend', (e) => e.target.closest('[data-index]')?.classList.remove('glisse'))
+  conteneur.addEventListener('dragover', (e) => {
+    if (depart === null) return
+    e.preventDefault()
+    for (const t of conteneur.querySelectorAll('.cible')) t.classList.remove('cible')
+    e.target.closest('[data-index]')?.classList.add('cible')
+  })
+  conteneur.addEventListener('drop', (e) => {
+    e.preventDefault()
+    const t = e.target.closest('[data-index]')
+    for (const c of conteneur.querySelectorAll('.cible')) c.classList.remove('cible')
+    if (t && depart !== null && Number(t.dataset.index) !== depart) deplacer(depart, Number(t.dataset.index))
+    depart = null
+  })
+}
+const deplacerDans = (liste, de, vers) => { const copie = [...liste]; copie.splice(vers, 0, copie.splice(de, 1)[0]); return copie }
 
 /* ---------- Ajouter : recherche GBIF ---------- */
 const recherche = $('#recherche'), liste = $('#suggestions'), etatGbif = $('#etat-gbif')
@@ -223,11 +263,21 @@ function afficherApercus() {
         ? el('img', { src: p.url, alt: '' })
         : el('div', { class: 'sans-apercu' }, 'Format non pris en charge'),
       el('button', { type: 'button', 'aria-label': `Retirer ${p.fichier.name}`, onclick: () => { URL.revokeObjectURL(p.url); photos.splice(i, 1); afficherApercus() } }, '×'),
-      el('div', { class: 'nom' }, p.fichier.name))))
+      el('div', { class: 'nom' }, p.fichier.name),
+      p.mois ? el('div', { class: 'nom' }, `Prise en ${moisAnnee(p.mois)}`) : null)))
 }
-function ajouterFichiers(liste) {
-  for (const f of liste) photos.push({ fichier: f, url: URL.createObjectURL(f) })
+async function ajouterFichiers(liste) {
+  const nouvelles = [...liste].map((f) => ({ fichier: f, url: URL.createObjectURL(f), mois: '' }))
+  photos.push(...nouvelles)
   afficherApercus()
+  // Date de prise de vue lue tout de suite : elle pré-remplit la date d'observation si elle est vide.
+  for (const p of nouvelles) p.mois = await moisDePriseDeVue(p.fichier)
+  afficherApercus()
+  const champ = $('#a-dateObservation'), premiere = photos.find((p) => p.mois)?.mois
+  if (premiere && !champ.value && !champ.disabled) {
+    champ.value = premiere
+    $('#date-lue').textContent = `Date d’observation pré-remplie : ${moisAnnee(premiere)} (lue dans la photo, modifiable dans « Infos détaillées »).`
+  }
 }
 champFichiers.addEventListener('change', () => { ajouterFichiers(champFichiers.files); champFichiers.value = '' })
 depot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); champFichiers.click() } })
@@ -282,6 +332,7 @@ $('#form-ajout').addEventListener('submit', async (e) => {
     if (!restantes.length) {
       for (const id of ['#recherche', '#nomScientifique', '#nomCommun', '#lieu']) $(id).value = ''
       $('#infos-ajout').replaceChildren(champsDetails('a'))
+      $('#date-lue').textContent = ''
       gbifKey = undefined
       verifierExistant()
       message(`Visible sur le site local : /${espece.categorie}/${espece.slug}/`, 'ok')
@@ -296,11 +347,14 @@ $('#form-ajout').addEventListener('submit', async (e) => {
 })
 
 /* ---------- Catalogue ---------- */
-let catalogue = [], selection = null
+let catalogue = [], selection = null, coeurs = new Set()
+const urlPhoto = (cat, slug, nom) => `${API}/especes/${cat}/${slug}/photos/${enc(nom)}`
 
 async function chargerCatalogue() {
   try {
-    catalogue = await api('/especes')
+    const [liste, listeCoeurs] = await Promise.all([api('/especes'), api('/coups-de-coeur')])
+    catalogue = liste
+    coeurs = new Set(listeCoeurs.map((c) => c.id))
   } catch (e) {
     catalogue = []
     $('#liste').replaceChildren(el('li', { class: 'vide' }, e.message))
@@ -319,7 +373,9 @@ function afficherListe() {
     ? vus.map((x) => el('li', {}, el('button', {
         type: 'button', 'aria-current': String(selection?.slug === x.slug && selection?.categorie === x.categorie),
         onclick: () => afficherDetail(x),
-      }, x.fiche.nomCommun, el('br'), el('em', {}, `${x.fiche.nomScientifique} · ${x.photos.length} photo${x.photos.length > 1 ? 's' : ''}`))))
+      },
+        x.photos[0] ? el('img', { src: urlPhoto(x.categorie, x.slug, x.photos[0]), alt: '', loading: 'lazy' }) : el('span', { class: 'sans-miniature' }),
+        el('span', {}, x.fiche.nomCommun, el('br'), el('em', {}, `${x.fiche.nomScientifique} · ${x.photos.length} photo${x.photos.length > 1 ? 's' : ''}`)))))
     : [el('li', { class: 'vide' }, catalogue.length ? 'Aucune espèce trouvée.' : 'Catalogue vide — commence par « Ajouter ».')]))
 }
 $('#filtre-catalogue').addEventListener('input', afficherListe)
@@ -342,7 +398,7 @@ function afficherDetail(x) {
       }))
       await chargerCatalogue()
       // Le panneau vient d'être redessiné : on écrit dans le nouveau.
-      $('#detail [aria-live]').textContent = 'Modifications enregistrées.'
+      $('#detail-retour').textContent = 'Modifications enregistrées.'
       rafraichirPublier()
     } catch (e) { retour.textContent = e.message }
   }
@@ -356,35 +412,48 @@ function afficherDetail(x) {
     try { await api(base, { method: 'DELETE' }); selection = null; await chargerCatalogue(); rafraichirPublier() }
     catch (e) { retour.textContent = e.message }
   }
+  // Nouvel ordre des photos : la première devient la principale.
+  const deplacer = async (de, vers) => {
+    if (vers < 0 || vers >= x.photos.length) return
+    try {
+      await api(`${base}/ordre`, json('PUT', { ordre: deplacerDans(x.photos, de, vers) }))
+      await chargerCatalogue()
+      $('#photos-retour').textContent = de === 0 || vers === 0 ? 'Nouvelle photo principale.' : 'Ordre enregistré.'
+      rafraichirPublier()
+    } catch (e) { $('#photos-retour').textContent = e.message }
+  }
+
+  const grille = el('div', { class: 'tuiles-photos' }, x.photos.map((nom, i) => tuilePhoto(base, x, nom, i, retirer, deplacer)))
+  activerGlisser(grille, deplacer)
 
   $('#detail').hidden = false
   remplacer($('#detail'),
-    el('h2', {}, x.fiche.nomCommun), el('em', {}, `${x.fiche.nomScientifique} · ${x.categorie}`),
-    el('div', { class: 'ligne', style: 'margin-top:1rem' },
-      el('div', { class: 'champ' }, el('label', { for: 'd-nom' }, 'Nom commun'), nomCommun),
-      el('div', { class: 'champ' }, el('label', { for: 'd-groupe' }, 'Groupe'), groupe)),
-    el('div', { class: 'ligne' },
-      el('div', { class: 'champ' }, el('label', { for: 'd-lieu' }, 'Lieu'), lieu),
-      el('div', { class: 'champ' },
-        el('label', { for: 'd-position' }, 'Position sur le globe ', el('span', { class: 'aide' }, '(latitude, longitude)')), position)),
-    x.fiche.coordonnees
-      ? el('p', { class: 'aide' }, `GPS de la photo : ${x.fiche.coordonnees.join(', ')} — utilisé en priorité sur le globe.`)
-      : x.fiche.lieu && !x.fiche.positionLieu
-        ? el('p', { class: 'aide' }, 'Lieu introuvable sur la carte : précise-le ou saisis la position à la main.')
-        : null,
-    champsDetails('d', x.fiche),
-    el('div', { class: 'actions' }, el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer')),
-    retour,
-    x.photos.length ? el('h3', { class: 'titre-photos' }, 'Photos ', el('span', { class: 'aide' }, '— vides, la date et le lieu reprennent ceux de l’espèce')) : null,
-    el('div', { class: 'photos-admin' }, x.photos.map((nom, i) => lignePhoto(base, x.fiche, nom, i, retirer))),
-    x.photos.length ? null : el('p', { class: 'aide' }, 'Aucune photo : cette espèce n’apparaît pas sur le site.'),
-    el('div', { class: 'actions' }, el('button', { type: 'button', class: 'danger', onclick: supprimer }, 'Supprimer l’espèce')),
+    el('div', { class: 'detail-infos' },
+      el('h2', {}, x.fiche.nomCommun), el('em', {}, `${x.fiche.nomScientifique} · ${x.categorie}`),
+      el('div', { class: 'ligne', style: 'margin-top:1rem' },
+        el('div', { class: 'champ' }, el('label', { for: 'd-nom' }, 'Nom commun'), nomCommun),
+        el('div', { class: 'champ' }, el('label', { for: 'd-groupe' }, 'Groupe'), groupe)),
+      el('div', { class: 'ligne' },
+        el('div', { class: 'champ' }, el('label', { for: 'd-lieu' }, 'Lieu'), lieu),
+        el('div', { class: 'champ' },
+          el('label', { for: 'd-position' }, 'Position ', el('span', { class: 'aide' }, '(latitude, longitude)')), position)),
+      champsDetails('d', x.fiche),
+      el('div', { class: 'actions' },
+        el('button', { type: 'button', class: 'danger', onclick: supprimer }, 'Supprimer l’espèce'),
+        el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer la fiche')),
+      el('p', { id: 'detail-retour', 'aria-live': 'polite', class: 'aide' }),
+      retour),
+    el('div', { class: 'detail-photos' },
+      el('h3', { class: 'titre-photos' }, `Photos (${x.photos.length}) `,
+        el('span', { class: 'aide' }, x.photos.length > 1 ? '— glisse pour réordonner, la première est la principale' : '')),
+      el('p', { id: 'photos-retour', class: 'aide', 'aria-live': 'polite' }),
+      x.photos.length ? grille : el('p', { class: 'aide' }, 'Aucune photo : cette espèce n’apparaît pas sur le site.')),
   )
 }
 
-/** Une photo de l'espèce : aperçu, légende / date / lieu propres à la photo, enregistrer, retirer. */
-function lignePhoto(base, fiche, nom, i, retirer) {
-  const infos = fiche.photos?.[nom] ?? {}
+/** Tuile d'une photo : aperçu, ordre, coup de cœur, légende / date / lieu propres à la photo. */
+function tuilePhoto(base, x, nom, i, retirer, deplacer) {
+  const infos = x.fiche.photos?.[nom] ?? {}
   const id = (c) => `p${i}-${c}`
   const retour = el('span', { class: 'aide', 'aria-live': 'polite' })
   const enregistrer = async () => {
@@ -396,31 +465,77 @@ function lignePhoto(base, fiche, nom, i, retirer) {
       rafraichirPublier()
     } catch (e) { retour.textContent = e.message }
   }
-  // Coup de cœur : enregistré dès le clic, la photo apparaît dans la mosaïque de l'accueil.
-  const coeur = el('input', { type: 'checkbox', id: id('coeur'), checked: infos.coupDeCoeur === true, onchange: async (e) => {
+  // Coup de cœur : enregistré dès le clic, ajouté à la fin de la mosaïque (ordre réglable dans l'onglet Coups de cœur).
+  const coeur = el('input', { type: 'checkbox', id: id('coeur'), checked: coeurs.has(`${x.categorie}/${x.slug}/${nom}`), onchange: async (e) => {
     const coche = e.currentTarget.checked
     try {
       await api(`${base}/photos/${enc(nom)}`, json('PATCH', { coupDeCoeur: coche }))
+      coche ? coeurs.add(`${x.categorie}/${x.slug}/${nom}`) : coeurs.delete(`${x.categorie}/${x.slug}/${nom}`)
       retour.textContent = coche ? 'Ajoutée aux coups de cœur.' : 'Retirée des coups de cœur.'
       rafraichirPublier()
     } catch (err) { e.currentTarget.checked = !coche; retour.textContent = err.message }
   } })
-  return el('div', { class: 'photo-admin' },
-    el('img', { src: `${API}${base}/photos/${enc(nom)}`, alt: '', loading: 'lazy' }),
-    el('div', { class: 'photo-admin-champs' },
-      el('div', { class: 'aide nom' }, nom),
-      el('label', { class: 'coeur', for: id('coeur') }, coeur, el('i', { class: 'etoile', 'aria-hidden': 'true' }, '★'), ' Coup de cœur (accueil)'),
-      el('div', { class: 'champ' }, el('label', { for: id('legende') }, 'Légende'),
-        el('input', { id: id('legende'), value: infos.legende ?? '', placeholder: 'ex. Mâle, Juvénile, Femelle en vol' })),
-      el('div', { class: 'ligne' },
-        el('div', { class: 'champ' }, el('label', { for: id('date') }, 'Date'), el('input', { id: id('date'), type: 'date', value: infos.date ?? '' })),
-        el('div', { class: 'champ' }, el('label', { for: id('lieu') }, 'Lieu'),
-          el('input', { id: id('lieu'), value: infos.lieu ?? '', placeholder: fiche.lieu ?? '' }))),
-      el('div', { class: 'actions' },
-        retour,
-        el('button', { type: 'button', class: 'danger', onclick: () => retirer(nom) }, 'Retirer'),
-        el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer la photo'))))
+  return el('div', { class: 'tuile-photo', draggable: 'true', 'data-index': i },
+    el('div', { class: 'tuile-image' },
+      el('img', { src: urlPhoto(x.categorie, x.slug, nom), alt: '', loading: 'lazy', draggable: 'false' }),
+      i === 0 ? el('span', { class: 'badge-principale' }, 'Principale') : null,
+      el('div', { class: 'tuile-ordre' },
+        el('button', { type: 'button', 'aria-label': `Avancer ${nom}`, disabled: i === 0, onclick: () => deplacer(i, i - 1) }, '◀'),
+        el('button', { type: 'button', 'aria-label': `Reculer ${nom}`, disabled: i === x.photos.length - 1, onclick: () => deplacer(i, i + 1) }, '▶'))),
+    el('label', { class: 'coeur', for: id('coeur') }, coeur, el('i', { class: 'etoile', 'aria-hidden': 'true' }, '★'), ' Coup de cœur'),
+    el('div', { class: 'champ' }, el('label', { for: id('legende') }, 'Légende'),
+      el('input', { id: id('legende'), value: infos.legende ?? '', placeholder: 'ex. Mâle, Juvénile' })),
+    el('div', { class: 'ligne' },
+      el('div', { class: 'champ' }, el('label', { for: id('date') }, 'Date'),
+        el('input', { id: id('date'), type: 'month', value: (infos.date ?? '').slice(0, 7) })),
+      el('div', { class: 'champ' }, el('label', { for: id('lieu') }, 'Lieu'),
+        el('input', { id: id('lieu'), value: infos.lieu ?? '', placeholder: x.fiche.lieu ?? '' }))),
+    el('div', { class: 'actions' },
+      el('button', { type: 'button', class: 'danger', onclick: () => retirer(nom) }, 'Retirer'),
+      el('button', { type: 'button', class: 'principal', onclick: enregistrer }, 'Enregistrer')),
+    retour)
 }
+
+/* ---------- Coups de cœur : la mosaïque de l'accueil, à réordonner ---------- */
+let listeCoeurs = []
+
+async function chargerCoeurs() {
+  try { listeCoeurs = await api('/coups-de-coeur') }
+  catch (e) { $('#coeurs-retour').textContent = e.message; return }
+  afficherCoeurs()
+}
+
+function afficherCoeurs() {
+  const zone = $('#mosaique-admin')
+  if (!listeCoeurs.length) return remplacer(zone, el('p', { class: 'aide' }, 'Aucun coup de cœur : coche ★ des photos dans « Mon catalogue ».'))
+  zone.replaceChildren(...listeCoeurs.map((c, i) => el('figure', { class: i === 0 ? 'grande' : null, draggable: 'true', 'data-index': i },
+    el('img', { src: urlPhoto(c.categorie, c.slug, c.nom), alt: '', loading: 'lazy', draggable: 'false' }),
+    el('figcaption', {}, c.nomCommun, c.legende ? el('em', {}, ` · ${c.legende}`) : null),
+    el('div', { class: 'tuile-ordre' },
+      el('button', { type: 'button', 'aria-label': `Avancer ${c.nomCommun}`, disabled: i === 0, onclick: () => deplacerCoeur(i, i - 1) }, '◀'),
+      el('button', { type: 'button', 'aria-label': `Reculer ${c.nomCommun}`, disabled: i === listeCoeurs.length - 1, onclick: () => deplacerCoeur(i, i + 1) }, '▶'),
+      el('button', { type: 'button', 'aria-label': `Retirer ${c.nomCommun} des coups de cœur`, title: 'Retirer des coups de cœur', onclick: () => retirerCoeur(c) }, '✕')))))
+}
+
+async function deplacerCoeur(de, vers) {
+  if (vers < 0 || vers >= listeCoeurs.length) return
+  try {
+    listeCoeurs = await api('/coups-de-coeur', json('PUT', { ordre: deplacerDans(listeCoeurs.map((c) => c.id), de, vers) }))
+    afficherCoeurs()
+    $('#coeurs-retour').textContent = vers === 0 ? 'Nouvelle photo en grand sur l’accueil.' : 'Ordre enregistré.'
+    rafraichirPublier()
+  } catch (e) { $('#coeurs-retour').textContent = e.message }
+}
+
+async function retirerCoeur(c) {
+  try {
+    await api(`/especes/${c.categorie}/${c.slug}/photos/${enc(c.nom)}`, json('PATCH', { coupDeCoeur: false }))
+    await chargerCoeurs()
+    $('#coeurs-retour').textContent = `${c.nomCommun} retiré des coups de cœur.`
+    rafraichirPublier()
+  } catch (e) { $('#coeurs-retour').textContent = e.message }
+}
+activerGlisser($('#mosaique-admin'), deplacerCoeur)
 
 /* ---------- Publier ---------- */
 const dialog = $('#dialog-publier'), boutonPublier = $('#publier')
@@ -428,7 +543,10 @@ const dialog = $('#dialog-publier'), boutonPublier = $('#publier')
 async function rafraichirPublier() {
   try {
     const r = await api('/publier')
-    boutonPublier.disabled = !(r.changements.length || r.commitsEnAttente)
+    // Compte les espèces touchées (faune/slug/...) plutôt que les fichiers ; la liste des coups de cœur compte pour un.
+    const touches = new Set(r.changements.map((c) => c.chemin.split('/').slice(0, 2).join('/'))).size
+    boutonPublier.disabled = !(touches || r.commitsEnAttente)
+    boutonPublier.textContent = touches ? `Publier (${touches})` : 'Publier'
     return r
   } catch (e) {
     boutonPublier.disabled = true

@@ -15,6 +15,6 @@ gbifKey: 5228417
 ajoute: 2026-10-30
 photos:
   dsc02456.jpg:
-    date: 2026-10-25
-    coupDeCoeur: true
+    date: 2026-10
+    lieu: Bangkok, Thailande
 ---

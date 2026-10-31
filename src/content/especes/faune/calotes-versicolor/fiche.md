@@ -19,8 +19,6 @@ positionLieu:
   - 13.69645
   - 100.56672
 photos:
-  dsc00048.jpg:
-    coupDeCoeur: true
   dsc00963-2.jpg:
     date: 2026-08-08
 ---

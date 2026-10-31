@@ -4,6 +4,7 @@ import YAML from 'yaml'
 import sharp from 'sharp'
 import exifr from 'exifr'
 import { slugify, assainirNomFichier } from '../src/lib/slug'
+import { ordonner } from '../src/lib/regrouper'
 import { CATEGORIES, GROUPES, estCategorie, type Categorie } from '../src/lib/categories'
 
 export type Fiche = {
@@ -28,8 +29,10 @@ export type Fiche = {
   description?: string
   /** Infos propres à une photo (clé = nom du fichier) ; à défaut, la page reprend celles de l'espèce. */
   photos?: Record<string, InfosPhoto>
+  /** Ordre choisi des photos ; la première est la photo principale. Absent : ordre alphabétique. */
+  ordre?: string[]
 }
-export type InfosPhoto = { legende?: string; date?: string; lieu?: string; coupDeCoeur?: boolean }
+export type InfosPhoto = { legende?: string; date?: string; lieu?: string }
 export type EspeceAdmin = { categorie: Categorie; slug: string; fiche: Fiche; photos: string[] }
 
 /** Champs modifiables depuis l'admin (en plus de coordonnees, géré par le GPS). */
@@ -93,21 +96,24 @@ function verifierChamps(categorie: Categorie, champs: Partial<Fiche>): void {
   if (champs.groupe !== undefined && !GROUPES[categorie].includes(champs.groupe)) throw new Error('Groupe invalide')
   if (champs.nomCommun !== undefined && !champs.nomCommun.trim()) throw new Error('Nom commun requis')
   if (champs.statutUicn && !STATUTS_UICN.includes(champs.statutUicn)) throw new Error('Statut UICN invalide')
-  if (champs.dateObservation && !/^\d{4}-\d{2}-\d{2}$/.test(champs.dateObservation)) throw new Error('Date invalide (AAAA-MM-JJ)')
+  if (champs.dateObservation && !DATE.test(champs.dateObservation)) throw new Error('Date invalide (mois/année)')
 }
 
-/** Date de prise de vue EXIF au format AAAA-MM-JJ, dans le fuseau de l'appareil (exifr la lit en heure locale). */
+// Dates au mois (AAAA-MM) ; les anciennes dates au jour (AAAA-MM-JJ) restent acceptées.
+const DATE = /^\d{4}-\d{2}(-\d{2})?$/
+
+/** Mois de prise de vue EXIF (AAAA-MM), dans le fuseau de l'appareil (exifr la lit en heure locale). */
 async function dateDePriseDeVue(contenu: Buffer): Promise<string | undefined> {
   const d = (await exifr.parse(contenu, ['DateTimeOriginal']).catch(() => undefined))?.DateTimeOriginal
   if (!(d instanceof Date) || isNaN(d.getTime())) return undefined
-  const deux = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 async function lireEspece(racine: string, categorie: Categorie, slug: string): Promise<EspeceAdmin> {
   const dossier = chemin(racine, categorie, slug)
-  const photos = (await readdir(dossier)).filter(estPhoto).sort()
-  return { categorie, slug, fiche: await lireFiche(dossier), photos }
+  const fiche = await lireFiche(dossier)
+  const photos = ordonner((await readdir(dossier)).filter(estPhoto).sort(), (n) => n, fiche.ordre)
+  return { categorie, slug, fiche, photos }
 }
 
 async function dossierEspece(racine: string, categorie: Categorie, slug: string): Promise<string> {
@@ -200,16 +206,72 @@ export async function ajouterPhoto(
   await writeFile(join(chemin(racine, categorie, slug, nom)), image, { flag: 'wx' })
 
   // La première photo qui porte un GPS ou une date les donne à la fiche ; on n'écrase jamais.
+  // Si un ordre a été choisi, la nouvelle photo se range à la fin.
   const dateObservation = await dateDePriseDeVue(contenu)
-  if (coordonnees || dateObservation) {
-    const fiche = await lireFiche(dossier)
+  const fiche = await lireFiche(dossier)
+  if (coordonnees || dateObservation || fiche.ordre) {
     const ajouts: Partial<Fiche> = {}
     if (coordonnees && !fiche.coordonnees) ajouts.coordonnees = coordonnees
     if (dateObservation && !fiche.dateObservation) ajouts.dateObservation = dateObservation
     if (dateObservation) ajouts.photos = { ...fiche.photos, [nom]: { date: dateObservation } }
+    if (fiche.ordre) ajouts.ordre = [...fiche.ordre, nom]
     await ecrireFiche(dossier, { ...fiche, ...ajouts })
   }
   return { nom, coordonnees }
+}
+
+export async function ordonnerPhotos(racine: string, categorie: Categorie, slug: string, ordre: string[]): Promise<string[]> {
+  const dossier = await dossierEspece(racine, categorie, slug)
+  const presentes = (await readdir(dossier)).filter(estPhoto)
+  if (!memesElements(ordre, presentes)) throw new Error('Ordre invalide : la liste doit contenir exactement les photos de l’espèce')
+  await ecrireFiche(dossier, { ...(await lireFiche(dossier)), ordre })
+  return ordre
+}
+
+const memesElements = (a: string[], b: string[]) => a.length === b.length && new Set(a).size === a.length && a.every((x) => b.includes(x))
+
+/* ---------- Coups de cœur : liste ordonnée « categorie/slug/photo », publiée avec le catalogue ---------- */
+
+const fichierCoeurs = (racine: string) => join(racine, 'coups-de-coeur.json')
+
+export async function lireCoupsDeCoeur(racine: string): Promise<string[]> {
+  try {
+    return JSON.parse(await readFile(fichierCoeurs(racine), 'utf8')) as string[]
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw e
+  }
+}
+
+async function ecrireCoupsDeCoeur(racine: string, liste: string[]): Promise<void> {
+  const tmp = `${fichierCoeurs(racine)}.tmp`
+  await writeFile(tmp, `${JSON.stringify(liste, null, 2)}\n`)
+  await renommerAvecReprise(tmp, fichierCoeurs(racine))
+}
+
+export async function definirCoupDeCoeur(
+  racine: string, categorie: Categorie, slug: string, nom: string, coche: boolean,
+): Promise<string[]> {
+  const dossier = await dossierEspece(racine, categorie, slug)
+  if (!estPhoto(nom) || !(await readdir(dossier)).includes(nom)) throw new Error('Photo introuvable')
+  const id = `${categorie}/${slug}/${nom}`
+  const liste = (await lireCoupsDeCoeur(racine)).filter((x) => x !== id)
+  if (coche) liste.push(id)
+  await ecrireCoupsDeCoeur(racine, liste)
+  return liste
+}
+
+export async function ordonnerCoupsDeCoeur(racine: string, ordre: string[]): Promise<string[]> {
+  if (!memesElements(ordre, await lireCoupsDeCoeur(racine))) throw new Error('Ordre invalide : la liste a changé, recharge la page')
+  await ecrireCoupsDeCoeur(racine, ordre)
+  return ordre
+}
+
+/** Retire de la liste les photos d'une espèce (toutes, ou une seule). */
+async function oublierCoupsDeCoeur(racine: string, prefixe: string): Promise<void> {
+  const liste = await lireCoupsDeCoeur(racine)
+  const restante = liste.filter((x) => !(x === prefixe || x.startsWith(`${prefixe}/`)))
+  if (restante.length !== liste.length) await ecrireCoupsDeCoeur(racine, restante)
 }
 
 export async function modifierPhoto(
@@ -218,12 +280,12 @@ export async function modifierPhoto(
   const dossier = await dossierEspece(racine, categorie, slug)
   const fiche = await lireFiche(dossier)
   if (!(await readdir(dossier)).includes(nom) || !estPhoto(nom)) throw new Error('Photo introuvable')
-  if (infos.date && !/^\d{4}-\d{2}-\d{2}$/.test(infos.date)) throw new Error('Date invalide (AAAA-MM-JJ)')
+  if (infos.date && !DATE.test(infos.date)) throw new Error('Date invalide (mois/année)')
   // Un champ non envoyé (undefined) garde sa valeur ; seule une chaîne vide l'efface.
   const envoyes = Object.fromEntries(Object.entries(infos).filter(([, v]) => v !== undefined))
-  const fusion: Record<string, string | boolean | undefined> = { ...fiche.photos?.[nom], ...envoyes }
-  // Texte vide ou case décochée : le champ disparaît de la fiche.
-  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => (typeof v === 'boolean' ? v : v?.trim()))) as InfosPhoto
+  const fusion: Record<string, unknown> = { ...fiche.photos?.[nom], ...envoyes }
+  // Seuls les textes non vides restent (l'ancienne marque coupDeCoeur des fiches disparaît au passage).
+  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => typeof v === 'string' && v.trim())) as InfosPhoto
   const { [nom]: _ancien, ...autres } = fiche.photos ?? {}
   const photos = Object.keys(propre).length ? { ...autres, [nom]: propre } : autres
   const nouvelle = { ...fiche, photos: Object.keys(photos).length ? photos : undefined }
@@ -237,13 +299,19 @@ export async function retirerPhoto(racine: string, categorie: Categorie, slug: s
   const dossier = await dossierEspece(racine, categorie, slug)
   await rm(p)
   const fiche = await lireFiche(dossier)
-  if (fiche.photos?.[nom]) {
-    const { [nom]: _retiree, ...autres } = fiche.photos
-    await ecrireFiche(dossier, { ...fiche, photos: Object.keys(autres).length ? autres : undefined })
+  if (fiche.photos?.[nom] || fiche.ordre?.includes(nom)) {
+    const { [nom]: _retiree, ...autres } = fiche.photos ?? {}
+    await ecrireFiche(dossier, {
+      ...fiche,
+      photos: Object.keys(autres).length ? autres : undefined,
+      ordre: fiche.ordre?.filter((n) => n !== nom),
+    })
   }
+  await oublierCoupsDeCoeur(racine, `${categorie}/${slug}/${nom}`)
 }
 
 export async function supprimerEspece(racine: string, categorie: Categorie, slug: string): Promise<void> {
   const dossier = await dossierEspece(racine, categorie, slug)
   await rm(dossier, { recursive: true })
+  await oublierCoupsDeCoeur(racine, `${categorie}/${slug}`)
 }

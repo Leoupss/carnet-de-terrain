@@ -6,6 +6,7 @@ import sharp from 'sharp'
 import exifr from 'exifr'
 import {
   listerEspeces, creerEspece, modifierFiche, ajouterPhoto, retirerPhoto, supprimerEspece, modifierPhoto,
+  ordonnerPhotos, definirCoupDeCoeur, lireCoupsDeCoeur, ordonnerCoupsDeCoeur,
 } from '../admin/fichiers'
 
 const fiche = { nomScientifique: 'Vulpes vulpes', nomCommun: 'Renard roux', groupe: 'Mammifères' }
@@ -80,7 +81,7 @@ describe('ajouterPhoto', () => {
       .withExif({ IFD2: { DateTimeOriginal: d } }).toBuffer()
     await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await datee('2023:03:08 23:50:00'))
     await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'b.jpg', await datee('2024:01:01 10:00:00'))
-    expect((await listerEspeces(racine))[0].fiche.dateObservation).toBe('2023-03-08')
+    expect((await listerEspeces(racine))[0].fiche.dateObservation).toBe('2023-03')
   })
 
   it('garde la date de prise de vue de chaque photo', async () => {
@@ -88,7 +89,7 @@ describe('ajouterPhoto', () => {
       .withExif({ IFD2: { DateTimeOriginal: d } }).toBuffer()
     const a = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await datee('2023:03:08 10:00:00'))
     const b = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'b.jpg', await datee('2024:01:01 10:00:00'))
-    expect((await listerEspeces(racine))[0].fiche.photos).toEqual({ [a.nom]: { date: '2023-03-08' }, [b.nom]: { date: '2024-01-01' } })
+    expect((await listerEspeces(racine))[0].fiche.photos).toEqual({ [a.nom]: { date: '2023-03' }, [b.nom]: { date: '2024-01' } })
   })
 
   it('refuse une espèce inexistante', async () => {
@@ -138,13 +139,12 @@ describe('modifier, retirer, supprimer', () => {
     expect((await listerEspeces(racine))[0].fiche.photos).toBeUndefined()
   })
 
-  it('modifierPhoto coche et décoche le coup de cœur sans toucher au reste', async () => {
+  it('modifierPhoto accepte une date au mois (AAAA-MM)', async () => {
     const { nom } = await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg', await jpeg())
-    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { legende: 'Mâle' })
-    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { coupDeCoeur: true })
-    expect((await listerEspeces(racine))[0].fiche.photos?.[nom]).toEqual({ legende: 'Mâle', coupDeCoeur: true })
-    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { coupDeCoeur: false })
-    expect((await listerEspeces(racine))[0].fiche.photos?.[nom]).toEqual({ legende: 'Mâle' })
+    await modifierPhoto(racine, 'faune', 'vulpes-vulpes', nom, { date: '2024-05' })
+    await modifierFiche(racine, 'faune', 'vulpes-vulpes', { dateObservation: '2024-05' })
+    const f = (await listerEspeces(racine))[0].fiche
+    expect([f.photos?.[nom]?.date, f.dateObservation]).toEqual(['2024-05', '2024-05'])
   })
 
   it('modifierPhoto ne touche pas aux champs non envoyés', async () => {
@@ -173,5 +173,73 @@ describe('modifier, retirer, supprimer', () => {
     expect((await listerEspeces(racine))[0].photos).toEqual([])
     await supprimerEspece(racine, 'faune', 'vulpes-vulpes')
     expect(await listerEspeces(racine)).toEqual([])
+  })
+})
+
+describe('ordre des photos', () => {
+  beforeEach(async () => {
+    await creerEspece(racine, 'faune', fiche)
+    for (const n of ['a.jpg', 'b.jpg', 'c.jpg']) await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', n, await jpeg())
+  })
+  const photos = async () => (await listerEspeces(racine))[0].photos
+
+  it('sans ordre choisi : ordre alphabétique', async () => {
+    expect(await photos()).toEqual(['a.jpg', 'b.jpg', 'c.jpg'])
+  })
+
+  it('ordonnerPhotos fixe l’ordre (la première devient la principale)', async () => {
+    await ordonnerPhotos(racine, 'faune', 'vulpes-vulpes', ['c.jpg', 'a.jpg', 'b.jpg'])
+    expect(await photos()).toEqual(['c.jpg', 'a.jpg', 'b.jpg'])
+  })
+
+  it('refuse une liste qui ne correspond pas aux photos', async () => {
+    await expect(ordonnerPhotos(racine, 'faune', 'vulpes-vulpes', ['a.jpg', 'b.jpg'])).rejects.toThrow('Ordre invalide')
+    await expect(ordonnerPhotos(racine, 'faune', 'vulpes-vulpes', ['a.jpg', 'b.jpg', 'x.jpg'])).rejects.toThrow('Ordre invalide')
+  })
+
+  it('une nouvelle photo va à la fin, une photo retirée sort de l’ordre', async () => {
+    await ordonnerPhotos(racine, 'faune', 'vulpes-vulpes', ['c.jpg', 'b.jpg', 'a.jpg'])
+    await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', '0.jpg', await jpeg())
+    expect(await photos()).toEqual(['c.jpg', 'b.jpg', 'a.jpg', '0.jpg'])
+    await retirerPhoto(racine, 'faune', 'vulpes-vulpes', 'b.jpg')
+    expect(await photos()).toEqual(['c.jpg', 'a.jpg', '0.jpg'])
+    expect((await listerEspeces(racine))[0].fiche.ordre).toEqual(['c.jpg', 'a.jpg', '0.jpg'])
+  })
+})
+
+describe('coups de cœur', () => {
+  beforeEach(async () => {
+    await creerEspece(racine, 'faune', fiche)
+    for (const n of ['a.jpg', 'b.jpg']) await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', n, await jpeg())
+  })
+
+  it('coche à la fin de la liste, décoche, sans doublon', async () => {
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'b.jpg', true)
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'a.jpg', true)
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'a.jpg', true)
+    expect(await lireCoupsDeCoeur(racine)).toEqual(['faune/vulpes-vulpes/b.jpg', 'faune/vulpes-vulpes/a.jpg'])
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'b.jpg', false)
+    expect(await lireCoupsDeCoeur(racine)).toEqual(['faune/vulpes-vulpes/a.jpg'])
+  })
+
+  it('ordonnerCoupsDeCoeur réordonne mais refuse d’ajouter ou d’oublier', async () => {
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'a.jpg', true)
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'b.jpg', true)
+    await ordonnerCoupsDeCoeur(racine, ['faune/vulpes-vulpes/b.jpg', 'faune/vulpes-vulpes/a.jpg'])
+    expect(await lireCoupsDeCoeur(racine)).toEqual(['faune/vulpes-vulpes/b.jpg', 'faune/vulpes-vulpes/a.jpg'])
+    await expect(ordonnerCoupsDeCoeur(racine, ['faune/vulpes-vulpes/a.jpg'])).rejects.toThrow('Ordre invalide')
+  })
+
+  it('refuse une photo inexistante', async () => {
+    await expect(definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'x.jpg', true)).rejects.toThrow('Photo introuvable')
+  })
+
+  it('retirer la photo ou supprimer l’espèce la sort de la liste', async () => {
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'a.jpg', true)
+    await definirCoupDeCoeur(racine, 'faune', 'vulpes-vulpes', 'b.jpg', true)
+    await retirerPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg')
+    expect(await lireCoupsDeCoeur(racine)).toEqual(['faune/vulpes-vulpes/b.jpg'])
+    await supprimerEspece(racine, 'faune', 'vulpes-vulpes')
+    expect(await lireCoupsDeCoeur(racine)).toEqual([])
   })
 })

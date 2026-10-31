@@ -16,7 +16,8 @@ const d = espece.data
 const alt = `${d.nomCommun} (${d.nomScientifique})`
 const { Content } = await render(espece.entree)
 const aDescription = Boolean(espece.entree.body?.trim())
-const formaterDate = (x?: Date) => x?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) ?? ''
+// Dates affichées au mois : « mai 2026 ».
+const formaterDate = (x?: Date) => x?.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) ?? ''
 
 const SIZES = '(max-width: 960px) 100vw, 640px'
 // Par photo : ses images (grande + plein écran) et ses infos, à défaut celles de l'espèce.

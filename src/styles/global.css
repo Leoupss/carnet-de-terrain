@@ -168,6 +168,7 @@ em { font-style: italic; }
 .lb-suiv { right: 1rem; top: 50%; transform: translateY(-50%); }
 
 .prose { max-width: 680px; }
+.prose h1 { margin-bottom: 1.5rem; }
 .prose h2 { margin: 2rem 0 .75rem; }
 .prose p, .prose ul { margin-bottom: 1rem; }
 .prose ul { padding-left: 1.25rem; }

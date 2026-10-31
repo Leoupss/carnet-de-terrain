@@ -11,6 +11,7 @@ import { aideSaisie } from './wikipedia'
 import { resume, publier } from './publier'
 
 const UI = fileURLToPath(new URL('./ui/', import.meta.url))
+const EXIFR_NAVIGATEUR = fileURLToPath(new URL('../node_modules/exifr/dist/lite.umd.js', import.meta.url))
 const TAILLE_MAX = 60 * 1024 * 1024
 const LOCAL = /^(localhost|127\.0\.0\.1)(:\d+)?$/
 const TYPES: Record<string, string> = {
@@ -99,6 +100,12 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
       res.end(await readFile(join(UI, nom)))
       return ENVOYE
     }
+    // exifr (version navigateur) : lire la date de prise de vue dès le dépôt d'une photo.
+    if (m === 'GET' && p === '/exifr.js') {
+      res.setHeader('Content-Type', TYPES['.js'])
+      res.end(await readFile(EXIFR_NAVIGATEUR))
+      return ENVOYE
+    }
     if (seg[0] !== 'api') return PAS_TROUVE
     const r = seg.slice(1)
 
@@ -114,6 +121,16 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
     if (r[0] === 'publier' && r.length === 1) {
       if (m === 'GET') return resume(projet)
       if (m === 'POST') return publier(projet)
+    }
+
+    if (r[0] === 'coups-de-coeur' && r.length === 1) {
+      if (m === 'GET') return coupsDeCoeurDetailles()
+      if (m === 'PUT') {
+        const b = await lireJson(req)
+        if (!Array.isArray(b.ordre) || !b.ordre.every((x: unknown) => typeof x === 'string')) throw new ErreurHttp(400, 'Ordre invalide')
+        await fichiers.ordonnerCoupsDeCoeur(racine, b.ordre)
+        return coupsDeCoeurDetailles()
+      }
     }
 
     if (r[0] !== 'especes') return PAS_TROUVE
@@ -161,6 +178,11 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
         return fichiers.modifierFiche(racine, cat, slug, champs)
       }
       if (r.length === 3 && m === 'DELETE') { await fichiers.supprimerEspece(racine, cat, slug); return { ok: true } }
+      if (r.length === 4 && r[3] === 'ordre' && m === 'PUT') {
+        const b = await lireJson(req)
+        if (!Array.isArray(b.ordre) || !b.ordre.every((x: unknown) => typeof x === 'string')) throw new ErreurHttp(400, 'Ordre invalide')
+        return { ordre: await fichiers.ordonnerPhotos(racine, cat, slug, b.ordre) }
+      }
       if (r[3] === 'photos') {
         if (r.length === 4 && m === 'POST') {
           const nom = url.searchParams.get('nom')
@@ -171,10 +193,8 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
         if (r.length === 5 && m === 'PATCH') {
           const b = await lireJson(req)
           const texte = (v: unknown) => (typeof v === 'string' ? v.trim() : undefined)
-          return fichiers.modifierPhoto(racine, cat, slug, r[4], {
-            legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu),
-            coupDeCoeur: typeof b.coupDeCoeur === 'boolean' ? b.coupDeCoeur : undefined,
-          })
+          if (typeof b.coupDeCoeur === 'boolean') await fichiers.definirCoupDeCoeur(racine, cat, slug, r[4], b.coupDeCoeur)
+          return fichiers.modifierPhoto(racine, cat, slug, r[4], { legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu) })
         }
         if (r.length === 5 && m === 'GET') {
           const e = (await fichiers.listerEspeces(racine)).find((x) => x.categorie === cat && x.slug === slug)
@@ -186,6 +206,17 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
       }
     }
     return PAS_TROUVE
+  }
+
+  /** La liste ordonnée, avec de quoi l'afficher ; les entrées dont la photo a disparu sont ignorées. */
+  async function coupsDeCoeurDetailles() {
+    const especes = await fichiers.listerEspeces(racine)
+    return (await fichiers.lireCoupsDeCoeur(racine)).flatMap((id) => {
+      const [cat, slug, nom] = id.split('/')
+      const e = especes.find((x) => x.categorie === cat && x.slug === slug)
+      if (!e?.photos.includes(nom)) return []
+      return [{ id, categorie: cat, slug, nom, nomCommun: e.fiche.nomCommun, legende: e.fiche.photos?.[nom]?.legende ?? '' }]
+    })
   }
 
   return (req: IncomingMessage, res: ServerResponse, next: () => void) => {

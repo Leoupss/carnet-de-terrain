@@ -1,5 +1,10 @@
 import { it, expect } from 'vitest'
-import { regrouperPhotos } from '../src/lib/regrouper'
+import { regrouperPhotos, ordonner } from '../src/lib/regrouper'
+
+it('ordonner : éléments cités d’abord, puis les autres ; noms inconnus ignorés', () => {
+  expect(ordonner(['a', 'b', 'c', 'd'], (x) => x, ['c', 'zz', 'a'])).toEqual(['c', 'a', 'b', 'd'])
+  expect(ordonner(['a', 'b'], (x) => x)).toEqual(['a', 'b'])
+})
 
 const img = (src: string) => ({ src, width: 1, height: 1, format: 'jpg' }) as any
 

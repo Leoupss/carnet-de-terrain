@@ -12,81 +12,94 @@
     <nav class="onglets" role="tablist">
       <button role="tab" id="onglet-ajouter" aria-selected="true" aria-controls="panneau-ajouter">Ajouter</button>
       <button role="tab" id="onglet-catalogue" aria-selected="false" aria-controls="panneau-catalogue">Mon catalogue</button>
+      <button role="tab" id="onglet-coeurs" aria-selected="false" aria-controls="panneau-coeurs">Coups de cœur</button>
     </nav>
     <button id="publier" class="principal" disabled>Publier</button>
   </header>
 
   <main>
-    <!-- Ajouter -->
+    <!-- Ajouter : le formulaire à gauche, les photos à droite -->
     <section id="panneau-ajouter" role="tabpanel" aria-labelledby="onglet-ajouter">
-      <form id="form-ajout" autocomplete="off">
-        <div class="champ recherche-espece">
-          <label for="recherche">Espèce</label>
-          <input id="recherche" type="text" placeholder="Nom scientifique ou commun (ex. Vulpes vulpes)"
-                 role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" />
-          <ul id="suggestions" role="listbox" hidden></ul>
-          <p class="aide" id="etat-gbif"></p>
+      <form id="form-ajout" class="deux-colonnes" autocomplete="off">
+        <div class="colonne">
+          <div class="champ recherche-espece">
+            <label for="recherche">Espèce</label>
+            <input id="recherche" type="text" placeholder="Nom scientifique ou commun (ex. Vulpes vulpes)"
+                   role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" />
+            <ul id="suggestions" role="listbox" hidden></ul>
+            <p class="aide" id="etat-gbif"></p>
+          </div>
+
+          <p id="deja" class="bandeau" hidden>Cette espèce est déjà au catalogue — les photos seront ajoutées à sa fiche.</p>
+
+          <div class="ligne">
+            <div class="champ">
+              <label for="nomScientifique">Nom scientifique</label>
+              <input id="nomScientifique" required />
+            </div>
+            <div class="champ">
+              <label for="nomCommun">Nom commun</label>
+              <input id="nomCommun" required />
+            </div>
+          </div>
+
+          <div class="ligne">
+            <div class="champ">
+              <label for="categorie">Catégorie</label>
+              <select id="categorie">
+                <option value="faune">Faune</option>
+                <option value="flore">Flore</option>
+              </select>
+            </div>
+            <div class="champ">
+              <label for="groupe">Groupe</label>
+              <select id="groupe"></select>
+            </div>
+            <div class="champ">
+              <label for="lieu">Lieu</label>
+              <input id="lieu" placeholder="ex. Bang Kachao, Thaïlande" />
+            </div>
+          </div>
+
+          <details class="details-ajout">
+            <summary>Infos détaillées <span class="aide">(facultatif — date, taille, habitat, UICN, description…)</span></summary>
+            <div id="infos-ajout"></div>
+          </details>
         </div>
 
-        <p id="deja" class="bandeau" hidden>Cette espèce est déjà au catalogue — les photos seront ajoutées à sa fiche.</p>
-
-        <div class="ligne">
-          <div class="champ">
-            <label for="nomScientifique">Nom scientifique</label>
-            <input id="nomScientifique" required />
-          </div>
-          <div class="champ">
-            <label for="nomCommun">Nom commun</label>
-            <input id="nomCommun" required />
-          </div>
-        </div>
-
-        <div class="ligne">
-          <div class="champ">
-            <label for="categorie">Catégorie</label>
-            <select id="categorie">
-              <option value="faune">Faune</option>
-              <option value="flore">Flore</option>
-            </select>
-          </div>
-          <div class="champ">
-            <label for="groupe">Groupe</label>
-            <select id="groupe"></select>
-          </div>
-          <div class="champ">
-            <label for="lieu">Lieu <span class="aide">(facultatif, non affiché)</span></label>
-            <input id="lieu" placeholder="ex. Bang Kachao, Thaïlande" />
-          </div>
-        </div>
-
-        <details class="details-ajout">
-          <summary>Infos détaillées <span class="aide">(facultatif — taille, habitat, UICN, description…)</span></summary>
-          <div id="infos-ajout"></div>
-        </details>
-
-        <div class="champ">
+        <div class="colonne">
           <span class="label">Photos</span>
           <label id="depot" class="depot" tabindex="0">
             <input id="fichiers" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
             Glisse tes photos ici ou <u>clique pour choisir</u><br />
             <span class="aide">JPG, PNG ou WebP — les RAW (CR3) et HEIC doivent être exportés en JPG</span>
           </label>
+          <p class="aide" id="date-lue" aria-live="polite"></p>
           <div id="apercus" class="vignettes"></div>
-        </div>
 
-        <progress id="progression" max="1" value="0" hidden></progress>
-        <ul id="messages" class="messages" aria-live="polite"></ul>
-        <button type="submit" class="principal" id="enregistrer">Enregistrer</button>
+          <progress id="progression" max="1" value="0" hidden></progress>
+          <ul id="messages" class="messages" aria-live="polite"></ul>
+          <div class="actions"><button type="submit" class="principal" id="enregistrer">Enregistrer</button></div>
+        </div>
       </form>
     </section>
 
-    <!-- Catalogue -->
+    <!-- Catalogue : la liste à gauche, la fiche à droite -->
     <section id="panneau-catalogue" role="tabpanel" aria-labelledby="onglet-catalogue" hidden>
-      <input id="filtre-catalogue" type="search" placeholder="Rechercher dans mon catalogue" aria-label="Rechercher dans mon catalogue" />
       <div class="catalogue">
-        <ul id="liste" class="liste"></ul>
+        <div class="colonne-liste">
+          <input id="filtre-catalogue" type="search" placeholder="Rechercher dans mon catalogue" aria-label="Rechercher dans mon catalogue" />
+          <ul id="liste" class="liste"></ul>
+        </div>
         <div id="detail" class="detail" hidden></div>
       </div>
+    </section>
+
+    <!-- Coups de cœur : la mosaïque de l'accueil, à réordonner -->
+    <section id="panneau-coeurs" role="tabpanel" aria-labelledby="onglet-coeurs" hidden>
+      <p class="aide">Fais glisser les photos (ou utilise ◀ ▶) : l'ordre est celui de l'accueil, la première est affichée en grand. Les photos se cochent ★ dans « Mon catalogue ».</p>
+      <p class="aide" id="coeurs-retour" aria-live="polite"></p>
+      <div id="mosaique-admin" class="mosaique-admin"></div>
     </section>
   </main>
 
@@ -100,6 +113,7 @@
     </div>
   </dialog>
 
+  <script src="/admin/exifr.js"></script>
   <script type="module" src="/admin/admin.js"></script>
 </body>
 </html>

@@ -17,5 +17,8 @@ photos:
     date: 2026-08-16
   dsc02299.jpg:
     date: 2026-08-16
-    coupDeCoeur: true
+ordre:
+  - dsc02299.jpg
+  - dsc01907.jpg
+  - dsc02470.jpg
 ---
