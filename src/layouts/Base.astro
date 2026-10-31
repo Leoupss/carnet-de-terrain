@@ -34,13 +34,24 @@ const actif = (href: string) => (href === '/' ? page === '/' : page.startsWith(h
     <header class="entete">
       <div class="conteneur">
         <a class="logo" href="/">Carnet de terrain</a>
+        <button class="menu-bouton" type="button" aria-expanded="false" aria-controls="nav-principale" aria-label="Menu">☰</button>
         <nav aria-label="Navigation principale">
-          <ul class="nav">
+          <ul class="nav" id="nav-principale">
             {liens.map((l) => <li><a href={l.href} aria-current={actif(l.href) ? 'page' : undefined}>{l.label}</a></li>)}
           </ul>
         </nav>
       </div>
     </header>
+    <script>
+      // Téléphone : le menu se déplie sous l'en-tête.
+      const bouton = document.querySelector<HTMLButtonElement>('.menu-bouton')!
+      const entete = document.querySelector('.entete')!
+      bouton.addEventListener('click', () => {
+        const ouvert = entete.classList.toggle('menu-ouvert')
+        bouton.setAttribute('aria-expanded', String(ouvert))
+        bouton.textContent = ouvert ? '✕' : '☰'
+      })
+    </script>
     <main>
       <slot />
     </main>

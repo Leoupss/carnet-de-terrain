@@ -18,8 +18,7 @@ const descriptions = {
   faune: 'Oiseaux, insectes, mammifères, reptiles — la vie animale dans son milieu.',
   flore: 'Fleurs, plantes, champignons — le monde végétal au fil des saisons.',
 }
-const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
----
+const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`---
 <Base>
   <section class="conteneur accueil-tete">
     <p class="surtitre">Carnet de terrain</p>
@@ -29,8 +28,7 @@ const compte = (n: number) => `${n} espèce${n > 1 ? 's' : ''}`
   <div class="conteneur">
     <div class="sections">
       {CATEGORIES.map((c) => (
-        <a class="section-carte" href={`/${c}/`}>
-          <h2>{LIBELLES[c]}</h2>
+        <a class="section-carte" href={`/${c}/`}>          <h2>{LIBELLES[c]}</h2>
           <p>{descriptions[c]}</p>
           <p class="surtitre" style="margin-top: 1rem">{compte(especes.filter((e) => e.categorie === c).length)}</p>
         </a>

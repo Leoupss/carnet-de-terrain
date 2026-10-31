@@ -46,6 +46,19 @@ em { font-style: italic; }
 .nav { display: flex; flex-wrap: wrap; gap: 1.25rem; list-style: none; }
 .nav a { text-decoration: none; color: var(--text-muted); }
 .nav a:hover, .nav a[aria-current="page"] { color: var(--green-forest); }
+.menu-bouton { display: none; }
+
+/* Téléphone : en-tête sur une ligne, fixé en haut, menu dépliant */
+@media (max-width: 700px) {
+  .entete { position: sticky; top: 0; z-index: 20; }
+  .entete .conteneur { flex-wrap: nowrap; align-items: center; padding-block: .6rem; }
+  .logo { font-size: 1.25rem; }
+  .menu-bouton { display: block; font-size: 1.4rem; line-height: 1; padding: .3rem .55rem; border: 1px solid var(--cream-dark); border-radius: 6px; background: transparent; color: var(--green-forest); cursor: pointer; }
+  .entete nav { display: none; }
+  .entete.menu-ouvert nav { display: block; position: absolute; left: 0; right: 0; top: 100%; background: var(--cream); border-bottom: 1px solid var(--cream-dark); box-shadow: 0 6px 16px rgba(0, 0, 0, .08); }
+  .entete.menu-ouvert .nav { flex-direction: column; gap: 0; padding: .3rem 1rem .7rem; }
+  .entete.menu-ouvert .nav a { display: block; padding: .65rem 0; font-size: 1.05rem; border-bottom: 1px solid var(--cream-mid); }
+}
 
 .pied { border-top: 1px solid var(--cream-dark); margin-top: 4rem; padding-block: 1.5rem; color: var(--text-muted); font-size: .9rem; }
 
@@ -68,10 +81,25 @@ em { font-style: italic; }
 
 /* Filtres */
 .filtres { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 2rem; }
+.filtres-groupes { display: flex; flex-wrap: wrap; gap: .5rem; }
 .filtre { font: inherit; font-size: .9rem; padding: .3rem .9rem; border: 1px solid var(--cream-dark); border-radius: 999px; background: transparent; cursor: pointer; color: var(--text-dark); }
 .filtre[aria-pressed="true"] { background: var(--green-forest); border-color: var(--green-forest); color: var(--cream); }
 .recherche { font: inherit; padding: .4rem .8rem; border: 1px solid var(--cream-dark); border-radius: 3px; background: #fff; margin-left: auto; min-width: 0; flex: 0 1 260px; }
 @media (max-width: 600px) { .recherche { margin-left: 0; flex: 1 1 100%; } }
+
+/* Téléphone : deux colonnes de cartes, filtres sur une ligne qui glisse */
+@media (max-width: 700px) {
+  .tete { padding-block: 1.5rem 1rem; }
+  /* Grille à une colonne bornée : sans elle, la rangée de filtres élargit toute la page au lieu de défiler. */
+  .filtres { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; margin-bottom: 1.25rem; }
+  .recherche { width: 100%; }
+  .filtres-groupes { flex-wrap: nowrap; overflow-x: auto; margin-inline: -1rem; padding: .1rem 1rem; scrollbar-width: none; }
+  .filtres-groupes::-webkit-scrollbar { display: none; }
+  .filtre { flex-shrink: 0; }
+  .grille { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem .75rem; }
+  .carte-nom { margin-top: .35rem; font-size: 1rem; line-height: 1.25; }
+  .carte-sci { font-size: .8rem; }
+}
 .vide { color: var(--text-muted); padding-block: 2rem; }
 
 /* Accueil */
@@ -81,6 +109,17 @@ em { font-style: italic; }
 .section-carte { display: block; text-decoration: none; padding: 2rem; border: 1px solid var(--cream-dark); border-radius: 8px; background: #fff; }
 .section-carte:hover { border-color: var(--green-mid); }
 .section-carte p { color: var(--text-muted); }
+
+/* Téléphone : Faune / Flore en deux cases compactes côte à côte */
+@media (max-width: 700px) {
+  .accueil-tete { padding-block: 2rem 1.5rem; }
+  .sections { grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .section-carte { padding: 1rem; }
+  .section-carte h2 { font-size: 1.4rem; }
+  .section-carte p:not(.surtitre) { display: none; }
+  .section-carte .surtitre { margin-top: .25rem !important; font-size: .7rem; }
+  .coups-de-coeur { margin-top: 2rem; }
+}
 
 /* Mosaïque des coups de cœur (accueil) */
 .coups-de-coeur { margin-top: 4rem; text-align: center; }
@@ -158,6 +197,22 @@ em { font-style: italic; }
   .fiche-photos { position: static; }
 }
 @media (max-width: 768px) { .fiche-nom { font-size: 1.9rem; } }
+
+/* Téléphone : nom au-dessus de la photo, autres photos en bande de miniatures qui glisse */
+@media (max-width: 700px) {
+  .fiche { padding-block: 1rem 3rem; }
+  .fil { margin-bottom: 1rem; }
+  .fiche-mise-en-page { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  /* Les blocs de la colonne d'infos deviennent des frères de la photo, pour pouvoir remonter le titre. */
+  .fiche-infos { display: contents; }
+  .fiche-infos > .badge { order: -3; align-self: flex-start; margin-bottom: .5rem; }
+  .fiche-infos > .fiche-nom { order: -2; font-size: 1.85rem; }
+  .fiche-infos > .fiche-sci { order: -1; margin-bottom: 1rem; }
+  .fiche-autres { display: flex; overflow-x: auto; gap: .5rem; padding: .15rem .15rem .35rem; scrollbar-width: none; }
+  .fiche-autres::-webkit-scrollbar { display: none; }
+  .fiche-autres button { flex: 0 0 68px; }
+  .photo-principale img { box-shadow: none; }
+}
 
 .lightbox { border: 0; padding: 0; max-width: 100vw; max-height: 100vh; width: 100vw; height: 100vh; background: rgba(20, 20, 18, .95); }
 .lightbox::backdrop { background: rgba(20, 20, 18, .95); }

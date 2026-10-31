@@ -22,8 +22,10 @@ const titre = LIBELLES[categorie]
 
     {especes.length > 0 && (
       <div class="filtres">
-        <button class="filtre" type="button" data-groupe="" aria-pressed="true">Tous</button>
-        {presents.map((g) => <button class="filtre" type="button" data-groupe={g} aria-pressed="false">{g}</button>)}
+        <div class="filtres-groupes">
+          <button class="filtre" type="button" data-groupe="" aria-pressed="true">Tous</button>
+          {presents.map((g) => <button class="filtre" type="button" data-groupe={g} aria-pressed="false">{g}</button>)}
+        </div>
         <input class="recherche" type="search" placeholder="Rechercher une espèce" aria-label="Rechercher une espèce" />
       </div>
     )}
