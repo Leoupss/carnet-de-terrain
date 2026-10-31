@@ -1,6 +1,6 @@
 ---
 nomScientifique: Treron vernans
-nomCommun: Colombar à nuque rose
+nomCommun: Colombar giouanne
 groupe: Oiseaux
 gbifKey: 2495817
 lieu: Bang Kachao, Bangkok, Thaïlande

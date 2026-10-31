@@ -1,6 +1,6 @@
 ---
-nomCommun: gobie sauteur
-groupe: Autres
+nomCommun: Gobie sauteur
+groupe: Poissons
 dateObservation: 2026-07
 taille: Boleophthalmus boddarti peut mesurer jusqu'à 22 cm.
 habitat: L'espèce Boleophthalmus boddarti vit typiquement dans des zones
@@ -16,8 +16,8 @@ ajoute: 2026-10-31
 photos:
   img-1778.jpg:
     date: 2026-07
-    lieu: Bang Pu, Thailande
+    lieu: Bang Pu, Thaïlande
   img-1790.jpg:
     date: 2026-07
-    lieu: Bang Pu, Thailande
+    lieu: Bang Pu, Thaïlande
 ---

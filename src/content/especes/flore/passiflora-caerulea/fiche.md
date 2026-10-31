@@ -9,7 +9,7 @@ taille: 5–15 m
 habitat: Liane grimpante des régions tempérées à tropicales — originaire
   d'Amérique du Sud
 floraison: Juin à septembre
-statutUicn: LC
+statutUicn: NE
 ajoute: 2026-10-24
 positionLieu:
   - 48.7226

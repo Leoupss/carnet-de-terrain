@@ -1,7 +1,7 @@
 ---
 nomCommun: Prosotas nora
 groupe: Insectes
-lieu: Bang Kachao, Thailande
+lieu: Bang Kachao, Thaïlande
 statutUicn: NE
 nomScientifique: Prosotas nora
 gbifKey: 1926448

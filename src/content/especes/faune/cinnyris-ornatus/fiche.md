@@ -16,4 +16,14 @@ ajoute: 2026-10-24
 positionLieu:
   - 13.69645
   - 100.56672
+photos:
+  tisserin-dore-asiatique.webp:
+    lieu: Bang Kachao, Thaïlande
+  souimanga-a-dos-vert-cinnyris-jugularis.jpg:
+    date: 2026-08-08
+    lieu: Khao Yai, Thaïlande
+ordre:
+  - souimanga-a-dos-vert-cinnyris-jugularis.jpg
+  - souimanga-orne.webp
+  - tisserin-dore-asiatique.webp
 ---

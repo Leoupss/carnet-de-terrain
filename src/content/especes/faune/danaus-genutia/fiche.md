@@ -9,7 +9,7 @@ taille: envergure 70–90 mm
 poids: < 1 g
 habitat: Prairies, lisières forestières, jardins d'Asie du Sud et du Sud-Est
 regime: Nectarivore (adulte) — feuilles d'Asclepiadaceae (chenille)
-statutUicn: LC
+statutUicn: NE
 ajoute: 2026-10-24
 positionLieu:
   - 13.69645

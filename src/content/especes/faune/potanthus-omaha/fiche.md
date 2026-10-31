@@ -1,7 +1,7 @@
 ---
 nomCommun: Hespérie mineure
 groupe: Insectes
-lieu: Bang Kachao, Thailande
+lieu: Bang Kachao, Thaïlande
 dateObservation: 2026-07
 habitat: Ce papillon est très adaptable et apprécie les zones chaudes et humides
   de plaine

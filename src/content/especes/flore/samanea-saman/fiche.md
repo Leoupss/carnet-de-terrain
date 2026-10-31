@@ -1,7 +1,7 @@
 ---
 nomCommun: Arbre à la pluie
 groupe: Fleurs
-lieu: Bang Kachao, Thailande
+lieu: Bang Kachao, Thaïlande
 dateObservation: 2026-07
 taille: Elles mesurent 25 à 40 centimètres de long avec des tiges finement poilues.
 habitat: "Dans les forêts tropicales ombrophiles l'« arbre à pluie » a des

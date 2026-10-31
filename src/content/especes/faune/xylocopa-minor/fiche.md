@@ -1,5 +1,5 @@
 ---
-nomCommun: abeille charpentière
+nomCommun: Abeille charpentière
 groupe: Insectes
 dateObservation: 2026-07
 taille: Sa longueur varie généralement entre 2 et 3 centimètres (20 à 30 mm),

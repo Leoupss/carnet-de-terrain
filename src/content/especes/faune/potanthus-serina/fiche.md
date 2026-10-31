@@ -1,7 +1,7 @@
 ---
 nomCommun: Potanthus serina
 groupe: Insectes
-lieu: Bang Kachao, Thailande
+lieu: Bang Kachao, Thaïlande
 statutUicn: NE
 nomScientifique: Potanthus serina
 gbifKey: 1947775

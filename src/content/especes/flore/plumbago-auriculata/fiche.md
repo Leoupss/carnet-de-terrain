@@ -1,7 +1,7 @@
 ---
 nomCommun: Dentelaire du Cap
 groupe: Fleurs
-lieu: Khao Yai, Thailande
+lieu: Khao Yai, Thaïlande
 statutUicn: NE
 nomScientifique: Plumbago auriculata
 gbifKey: 3082283

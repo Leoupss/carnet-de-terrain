@@ -10,7 +10,7 @@ taille: 12–20 cm
 poids: 5–10 g
 habitat: Forêts tropicales, jardins et zones urbaines — endémique de la Martinique
 regime: Insectivore
-statutUicn: LC
+statutUicn: NE
 positionLieu:
   - 14.67105
   - -61.09197

@@ -16,5 +16,5 @@ ajoute: 2026-10-30
 photos:
   dsc02456.jpg:
     date: 2026-10
-    lieu: Bangkok, Thailande
+    lieu: Bangkok, Thaïlande
 ---

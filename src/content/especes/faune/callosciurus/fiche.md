@@ -1,7 +1,7 @@
 ---
-nomCommun: Ecureuil
+nomCommun: Écureuil
 groupe: Mammifères
-lieu: Bang Kachao, Thailande
+lieu: Bang Kachao, Thaïlande
 dateObservation: 2026-08-16
 statutUicn: NE
 nomScientifique: Callosciurus

@@ -1,6 +1,6 @@
 ---
 nomScientifique: Pycnonotus goiavier
-nomCommun: Bulbul à ventre jaune
+nomCommun: Bulbul goiavier
 groupe: Oiseaux
 gbifKey: 2486144
 lieu: Bang Kachao, Bangkok, Thaïlande

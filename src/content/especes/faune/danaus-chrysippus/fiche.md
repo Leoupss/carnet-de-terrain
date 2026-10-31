@@ -1,6 +1,6 @@
 ---
 nomScientifique: Danaus chrysippus
-nomCommun: Tigre ordinaire
+nomCommun: Petit monarque
 groupe: Insectes
 gbifKey: 7642610
 lieu: Benchakiti Park, Bangkok

@@ -1,7 +1,7 @@
 ---
 nomCommun: Capucin damier
 groupe: Oiseaux
-lieu: Khao Yai, Thailande
+lieu: Khao Yai, Thaïlande
 dateObservation: 2026-08-08
 taille: Le capucin damier est un petit passereau qui mesure jusqu'à 12 cm de long.
 habitat: Il vit dans les habitats ouverts, les prairies, les zones arbustives.
