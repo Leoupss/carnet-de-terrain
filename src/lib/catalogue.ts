@@ -10,7 +10,12 @@ export type Espece = {
   photos: Photo[]
   /** Pour `render(espece.entree)` : la description écrite sous le frontmatter. */
   entree: CollectionEntry<'especes'>
+  /** Cases de présence [lat, lon] de 2° (zones.json, calculé depuis GBIF). */
+  zones: [number, number][]
 }
+
+const toutesZones = import.meta.glob<[number, number][]>('/src/content/especes/**/zones.json', { eager: true, import: 'default' })
+const zonesDe = (id: string) => toutesZones[`/src/content/especes/${id}/zones.json`] ?? []
 
 const photos = regrouperPhotos(
   import.meta.glob<ImageMetadata>('/src/content/especes/**/*.{jpg,jpeg,png,webp}', { eager: true, import: 'default' }),
@@ -39,7 +44,7 @@ export async function getEspeces(categorie?: Categorie): Promise<Espece[]> {
       const [cat, slug] = e.id.split('/') as [Categorie, string]
       // Ordre choisi dans l'admin : la première photo est la principale (carte, fiche, mosaïque).
       const liste = ordonner(photos.get(e.id) ?? [], (p) => p.nom, e.data.ordre)
-      return { categorie: cat, slug, data: e.data, photos: liste, entree: e }
+      return { categorie: cat, slug, data: e.data, photos: liste, entree: e, zones: zonesDe(e.id) }
     })
     // Une fiche sans photo (envoi interrompu) reste invisible.
     .filter((e) => e.photos.length > 0 && (!categorie || e.categorie === categorie))

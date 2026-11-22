@@ -58,4 +58,9 @@ repartition:
 photos:
   crocothemis-servilia.jpg:
     date: 2026-10
+  crocothemis-servilia.webp:
+    lieu: Bangkok, Thailande
+    position:
+      - 13.75249
+      - 100.49351
 ---

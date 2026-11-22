@@ -1,0 +1,172 @@
+---
+// Petit globe de la fiche : zones où l'espèce est recensée (GBIF) + points de mes observations.
+export type PointPhoto = { position: [number, number] | null; lieu: string; date: string }
+interface Props {
+  /** Cases de présence [lat, lon] de 2° ; à défaut, les pays (codes ISO numériques). */
+  zones: [number, number][]
+  repartition: string[]
+  /** Un par photo, dans l'ordre des photos. */
+  points: PointPhoto[]
+}
+const { zones, repartition, points } = Astro.props
+---
+<figure class="globe-espece" data-zones={JSON.stringify(zones)} data-pays={JSON.stringify(repartition)} data-points={JSON.stringify(points)}>
+  <svg viewBox="0 0 300 300" role="img" aria-label="Globe : zones où l'espèce est présente et lieux de mes observations">
+    <defs>
+      <!-- Bords lisses mais nets : flou puis seuil de transparence, qui arrondit les marches des cases de 2°. -->
+      <filter id="ge-flou" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur stdDeviation="2" />
+        <feComponentTransfer><feFuncA type="linear" slope="14" intercept="-6" /></feComponentTransfer>
+      </filter>
+      <clipPath id="ge-disque"><circle cx="150" cy="150" r="146" /></clipPath>
+    </defs>
+    <path class="ge-ocean" />
+    <path class="ge-terres" />
+    <g clip-path="url(#ge-disque)"><path class="ge-presence" filter="url(#ge-flou)" /></g>
+    <path class="ge-contour" />
+    <g class="ge-points"></g>
+  </svg>
+  <figcaption>
+    <p class="ge-observation" aria-live="polite"></p>
+    <span><i class="ge-pastille ge-pastille-presence"></i>Présence connue</span>
+    <span><i class="ge-pastille ge-pastille-point"></i>Mon observation</span>
+  </figcaption>
+</figure>
+
+<script>
+  import { geoOrthographic, geoPath, geoDistance, geoCentroid, geoInterpolate } from 'd3-geo'
+  import { feature } from 'topojson-client'
+  import type { Topology, GeometryCollection } from 'topojson-specification'
+  import type { MultiPolygon } from 'geojson'
+  import monde from 'world-atlas/countries-110m.json'
+
+  type PointPhoto = { position: [number, number] | null; lieu: string; date: string }
+  const cadre = document.querySelector<HTMLElement>('.globe-espece')
+  if (cadre) {
+    const svg = cadre.querySelector('svg')!
+    const $ = <T extends Element>(s: string) => svg.querySelector<T>(s)!
+    const ligne = cadre.querySelector<HTMLElement>('.ge-observation')!
+    const cases: [number, number][] = JSON.parse(cadre.dataset.zones ?? '[]')
+    const pays = new Set<string>(JSON.parse(cadre.dataset.pays ?? '[]'))
+    const photos: PointPhoto[] = JSON.parse(cadre.dataset.points ?? '[]')
+
+    const topo = monde as unknown as Topology<{ countries: GeometryCollection }>
+    const tous = feature(topo, topo.objects.countries)
+    // Cases de 2° (anneau dans le sens horaire, attendu par d3 sur la sphère) ; sinon les pays entiers.
+    const presence = cases.length
+      ? { type: 'MultiPolygon', coordinates: cases.map(([la, lo]) => [[[lo, la], [lo, la + 2], [lo + 2, la + 2], [lo + 2, la], [lo, la]]]) } as MultiPolygon
+      : { type: 'FeatureCollection' as const, features: tous.features.filter((f) => pays.has(String(f.id))) }
+    const sphere = { type: 'Sphere' } as const
+
+    // Un point par zone : sur ce petit globe (rayon 146 px), deux points à moins de ~12 px (~500 km) se superposeraient.
+    const PROCHE = 0.08 // radians (~500 km)
+    const lieux: { lonLat: [number, number]; photos: number[] }[] = []
+    photos.forEach((p, i) => {
+      if (!p.position) return
+      const lonLat: [number, number] = [p.position[1], p.position[0]]
+      const proche = lieux.find((l) => geoDistance(l.lonLat, lonLat) < PROCHE)
+      if (proche) proche.photos.push(i); else lieux.push({ lonLat, photos: [i] })
+    })
+    let courante = 0
+    const lieuDe = (i: number) => lieux.findIndex((l) => l.photos.includes(i))
+
+    const projection = geoOrthographic().scale(146).translate([150, 150]).clipAngle(90)
+    const chemin = geoPath(projection)
+    const borner = (lat: number) => Math.max(-60, Math.min(60, lat))
+    const depart = lieux[lieuDe(0)]?.lonLat ?? (geoCentroid(presence as never) as [number, number])
+    let rotation: [number, number] = [-depart[0], -borner(depart[1])]
+
+    const cercles = lieux.map((l, k) => {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      c.setAttribute('tabindex', '0')
+      c.setAttribute('role', 'button')
+      const n = l.photos.length
+      c.setAttribute('aria-label', `${photos[l.photos[0]].lieu || 'Lieu d’observation'} : ${n > 1 ? `${n} photos, afficher la suivante` : 'afficher la photo'}`)
+      c.addEventListener('click', (e) => { e.stopPropagation(); choisir(k) })
+      c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choisir(k) } })
+      $('.ge-points').append(c)
+      return c
+    })
+
+    function dessiner() {
+      projection.rotate(rotation)
+      $('.ge-ocean').setAttribute('d', chemin(sphere)!)
+      $('.ge-contour').setAttribute('d', chemin(sphere)!)
+      $('.ge-terres').setAttribute('d', chemin(tous) ?? '')
+      $('.ge-presence').setAttribute('d', chemin(presence as never) ?? '')
+      const centre: [number, number] = [-rotation[0], -rotation[1]]
+      const actif = lieuDe(courante)
+      lieux.forEach((l, k) => {
+        const c = cercles[k]
+        const visible = geoDistance(l.lonLat, centre) < Math.PI / 2 - 0.02
+        c.style.display = visible ? '' : 'none'
+        c.setAttribute('class', k === actif ? 'ge-point ge-point-actif' : 'ge-point')
+        c.setAttribute('r', k === actif ? '6.5' : '4.5')
+        if (!visible) return
+        const [x, y] = projection(l.lonLat)!
+        c.setAttribute('cx', String(x))
+        c.setAttribute('cy', String(y))
+      })
+      // L'actif dessiné en dernier, au-dessus des autres.
+      if (actif >= 0) $('.ge-points').append(cercles[actif])
+    }
+
+    // Sous le globe : lieu et mois de la photo affichée.
+    function ecrireObservation() {
+      const p = photos[courante]
+      ligne.textContent = p ? [p.lieu, p.date].filter(Boolean).join(' · ') : ''
+      ligne.hidden = !ligne.textContent
+    }
+
+    let animation = 0
+    function tournerVers(lonLat: [number, number]) {
+      const trajet = geoInterpolate([-rotation[0], -rotation[1]], [lonLat[0], borner(lonLat[1])])
+      const t0 = performance.now()
+      cancelAnimationFrame(animation)
+      const pas = (t: number) => {
+        const k = Math.min(1, (t - t0) / 700)
+        const [lon, lat] = trajet(k * (2 - k))
+        rotation = [-lon, -lat]
+        dessiner()
+        if (k < 1) animation = requestAnimationFrame(pas)
+      }
+      animation = requestAnimationFrame(pas)
+    }
+
+    // Clic sur un point : la fiche affiche une photo prise dans cette zone (clics suivants : la suivante).
+    function choisir(k: number) {
+      const ici = lieux[k].photos
+      const i = ici.includes(courante) ? ici[(ici.indexOf(courante) + 1) % ici.length] : ici[0]
+      document.dispatchEvent(new CustomEvent('globe-choisir', { detail: i }))
+    }
+
+    // Changement de photo sur la fiche : le globe tourne vers son lieu.
+    document.addEventListener('photo-affichee', (e) => {
+      courante = (e as CustomEvent<number>).detail
+      const k = lieuDe(courante)
+      ecrireObservation()
+      if (k >= 0) tournerVers(lieux[k].lonLat); else dessiner()
+    })
+
+    // Glisser pour faire tourner le globe (souris et doigt). Un point se clique sans déclencher le glisser.
+    let glisse: { x: number; y: number; r: [number, number] } | null = null
+    svg.addEventListener('pointerdown', (e) => {
+      if ((e.target as Element).closest('circle')) return
+      cancelAnimationFrame(animation)
+      glisse = { x: e.clientX, y: e.clientY, r: rotation }
+      svg.setPointerCapture(e.pointerId)
+    })
+    svg.addEventListener('pointermove', (e) => {
+      if (!glisse) return
+      const k = 180 / svg.getBoundingClientRect().width
+      rotation = [glisse.r[0] + (e.clientX - glisse.x) * k, Math.max(-80, Math.min(80, glisse.r[1] - (e.clientY - glisse.y) * k))]
+      dessiner()
+    })
+    const fin = () => { glisse = null }
+    svg.addEventListener('pointerup', fin)
+    svg.addEventListener('pointercancel', fin)
+
+    ecrireObservation()
+    dessiner()
+  }
+</script>

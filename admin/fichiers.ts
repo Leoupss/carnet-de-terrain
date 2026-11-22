@@ -31,8 +31,11 @@ export type Fiche = {
   photos?: Record<string, InfosPhoto>
   /** Ordre choisi des photos ; la première est la photo principale. Absent : ordre alphabétique. */
   ordre?: string[]
+  /** Pays (ISO numérique) où GBIF recense l'espèce, colorés sur le globe de la fiche. */
+  repartition?: string[]
 }
-export type InfosPhoto = { legende?: string; date?: string; lieu?: string }
+/** `position` : coordonnées approximatives du lieu de la photo (point sur le globe). */
+export type InfosPhoto = { legende?: string; date?: string; lieu?: string; position?: [number, number] }
 export type EspeceAdmin = { categorie: Categorie; slug: string; fiche: Fiche; photos: string[] }
 
 /** Champs modifiables depuis l'admin (en plus de coordonnees, géré par le GPS). */
@@ -167,7 +170,7 @@ export async function creerEspece(
 
 export async function modifierFiche(
   racine: string, categorie: Categorie, slug: string,
-  champs: Partial<Pick<Fiche, ChampModifiable | 'coordonnees' | 'positionLieu'>>,
+  champs: Partial<Pick<Fiche, ChampModifiable | 'coordonnees' | 'positionLieu' | 'repartition'>>,
 ): Promise<Fiche> {
   const dossier = await dossierEspece(racine, categorie, slug)
   verifierChamps(categorie, champs)
@@ -218,6 +221,12 @@ export async function ajouterPhoto(
     await ecrireFiche(dossier, { ...fiche, ...ajouts })
   }
   return { nom, coordonnees }
+}
+
+/** Zones de présence (cases de 2°) affichées sur le globe de la fiche, à côté de fiche.md. */
+export async function ecrireZones(racine: string, categorie: Categorie, slug: string, cases: [number, number][]): Promise<void> {
+  const dossier = await dossierEspece(racine, categorie, slug)
+  await writeFile(join(dossier, 'zones.json'), JSON.stringify(cases))
 }
 
 export async function ordonnerPhotos(racine: string, categorie: Categorie, slug: string, ordre: string[]): Promise<string[]> {
@@ -284,8 +293,8 @@ export async function modifierPhoto(
   // Un champ non envoyé (undefined) garde sa valeur ; seule une chaîne vide l'efface.
   const envoyes = Object.fromEntries(Object.entries(infos).filter(([, v]) => v !== undefined))
   const fusion: Record<string, unknown> = { ...fiche.photos?.[nom], ...envoyes }
-  // Seuls les textes non vides restent (l'ancienne marque coupDeCoeur des fiches disparaît au passage).
-  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => typeof v === 'string' && v.trim())) as InfosPhoto
+  // Restent les textes non vides et la position (l'ancienne marque coupDeCoeur des fiches disparaît au passage).
+  const propre = Object.fromEntries(Object.entries(fusion).filter(([, v]) => (typeof v === 'string' && v.trim()) || Array.isArray(v))) as InfosPhoto
   const { [nom]: _ancien, ...autres } = fiche.photos ?? {}
   const photos = Object.keys(propre).length ? { ...autres, [nom]: propre } : autres
   const nouvelle = { ...fiche, photos: Object.keys(photos).length ? photos : undefined }

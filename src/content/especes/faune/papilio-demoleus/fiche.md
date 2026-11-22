@@ -9,10 +9,14 @@ nomScientifique: Papilio demoleus
 gbifKey: 1938069
 ajoute: 2026-10-30
 photos:
-  dsc00977.jpg:
-    date: 2026-08-08
   papilio-demoleus.jpg:
     date: 2026-10
+  dsc00977.jpg:
+    date: 2026-08
+    lieu: Bang Kachao, Thailande
+    position:
+      - 13.69223
+      - 100.56374
 repartition:
   - "036"
   - "048"

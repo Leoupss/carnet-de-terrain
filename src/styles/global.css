@@ -170,18 +170,22 @@ em { font-style: italic; }
 .fiche-nom { font-size: 2.5rem; font-weight: 400; line-height: 1.1; margin-bottom: .4rem; }
 .fiche-sci { font-family: var(--font-serif); font-size: 1.15rem; color: var(--text-muted); margin-bottom: 1.75rem; }
 
-.ornement { height: 1px; background: var(--cream-dark); margin: 1.5rem 0; position: relative; }
-.ornement::after { content: '◆'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--cream); padding: 0 .6rem; color: var(--gold); font-size: .45rem; }
+.fiche-uicn { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1.75rem; font-size: .9rem; }
+.fiche-uicn-titre { font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.fiche-uicn-libelle { color: var(--text-muted); }
 
-.fiche-section { font-family: var(--font-sans); font-size: .67rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--green-forest); margin-bottom: 1.1rem; display: flex; align-items: center; gap: .75rem; }
-.fiche-section::after { content: ''; flex: 1; height: 1px; background: var(--cream-dark); }
-
-.fiche-meta { display: flex; flex-direction: column; gap: .75rem; }
-.fiche-meta div { display: flex; align-items: baseline; gap: 1rem; font-size: .9rem; }
-.fiche-meta dt { font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); min-width: 85px; flex-shrink: 0; }
-.fiche-meta dd { color: #4A4540; }
-.fiche-description { font-family: var(--font-serif); font-size: 1.05rem; line-height: 1.8; color: #4A4540; margin-top: 1.25rem; }
-.fiche-description p + p { margin-top: 1em; }
+/* Petit globe : présence de l'espèce + lieu de la photo affichée */
+.globe-espece { margin: 0; max-width: 280px; }
+.globe-espece svg { display: block; width: 100%; height: auto; cursor: grab; touch-action: pan-y; user-select: none; }
+.globe-espece svg:active { cursor: grabbing; }
+.ge-ocean { fill: var(--cream-mid); }
+.ge-terres { fill: #DDD6C6; stroke: var(--cream); stroke-width: .4; }
+.ge-presence { fill: var(--green-mid); }
+.ge-contour { fill: none; stroke: var(--cream-dark); stroke-width: 1; }
+.globe-espece figcaption { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: .5rem; font-size: .78rem; color: var(--text-muted); }
+.ge-pastille { display: inline-block; width: .65rem; height: .65rem; margin-right: .35rem; border-radius: 50%; vertical-align: -1px; }
+.ge-pastille-presence { background: var(--green-mid); }
+.ge-pastille-point { background: var(--gold); border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--cream-dark); }
 
 .uicn { display: inline-block; padding: .18rem .6rem; border-radius: 4px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #fff; background: #6F665B; }
 .uicn-lc { background: #388e3c; }
@@ -212,6 +216,8 @@ em { font-style: italic; }
   .fiche-autres::-webkit-scrollbar { display: none; }
   .fiche-autres button { flex: 0 0 68px; }
   .photo-principale img { box-shadow: none; }
+  .fiche-uicn { margin-top: 1rem; }
+  .globe-espece { margin-inline: auto; }
 }
 
 .lightbox { border: 0; padding: 0; max-width: 100vw; max-height: 100vh; width: 100vw; height: 100vh; background: rgba(20, 20, 18, .95); }
@@ -227,3 +233,10 @@ em { font-style: italic; }
 .prose h2 { margin: 2rem 0 .75rem; }
 .prose p, .prose ul { margin-bottom: 1rem; }
 .prose ul { padding-left: 1.25rem; }
+
+/* Globe de la fiche : points de mes observations et bulle du lieu */
+.globe-espece { position: relative; }
+.ge-point { fill: #fff; stroke: var(--gold); stroke-width: 2; cursor: pointer; }
+.ge-point-actif { fill: var(--gold); stroke: #fff; stroke-width: 1.5; }
+.ge-point:focus-visible { outline: none; stroke: var(--brown-earth); stroke-width: 3; }
+.ge-observation { flex-basis: 100%; margin-bottom: .2rem; font-family: var(--font-serif); font-size: .95rem; font-style: italic; color: var(--text-dark); }

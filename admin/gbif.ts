@@ -15,12 +15,25 @@ async function lire<T>(chemin: string): Promise<T> {
 
 type EspeceGbif = { key: number; canonicalName: string; kingdom?: string; class?: string; synonym?: boolean; acceptedKey?: number }
 
-export async function suggerer(q: string): Promise<{ key: number; nomScientifique: string; rang: string }[]> {
+type Suggestion = { key: number; nomScientifique: string; rang: string; nomCommun?: string }
+
+export async function suggerer(q: string): Promise<Suggestion[]> {
   if (q.trim().length < 2) return []
   const r = await lire<{ key: number; canonicalName: string; rank: string }[]>(
     `/species/suggest?q=${encodeURIComponent(q.trim())}&limit=10`,
   )
-  return r.filter((s) => s.canonicalName).map((s) => ({ key: s.key, nomScientifique: s.canonicalName, rang: s.rank }))
+  const latins = r.filter((s) => s.canonicalName).map((s) => ({ key: s.key, nomScientifique: s.canonicalName, rang: s.rank }))
+  return latins.length ? latins : vernaculaire(q.trim())
+}
+
+/** Recherche par nom français (« Merle noir » → Turdus merula), dans la taxonomie de référence GBIF. */
+async function vernaculaire(q: string): Promise<Suggestion[]> {
+  const params = new URLSearchParams({ q, qField: 'VERNACULAR', rank: 'SPECIES', datasetKey: 'd7dddbf4-2cf0-4f39-9b2a-bb099caae36c', limit: '10' })
+  const r = await lire<{ results: { key: number; canonicalName?: string; rank: string; vernacularNames?: { vernacularName: string; language?: string }[] }[] }>(`/species/search?${params}`)
+  return r.results.filter((s) => s.canonicalName).map((s) => ({
+    key: s.key, nomScientifique: s.canonicalName!, rang: s.rank,
+    nomCommun: s.vernacularNames?.find((v) => v.language === 'fra')?.vernacularName,
+  }))
 }
 
 export async function details(key: number): Promise<{

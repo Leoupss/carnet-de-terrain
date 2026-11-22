@@ -3,7 +3,9 @@ import { Readable } from 'node:stream'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import sharp from 'sharp'
 import { origineAutorisee, creerMiddleware } from '../admin/api'
+import { creerEspece, ajouterPhoto } from '../admin/fichiers'
 
 let racine: string
 beforeEach(async () => { racine = await mkdtemp(join(tmpdir(), 'api-')) })
@@ -95,6 +97,17 @@ describe('position du lieu', () => {
     requetes = []
     await appeler('PATCH', '/api/especes/faune/vulpes-vulpes', { corps: { lieu: 'Martinique', taille: '1 m' }, origin })
     expect(requetes).toEqual([])
+  })
+
+  it('lieu d’une photo : position calculée, retirée quand le lieu est vidé', async () => {
+    await creerEspece(racine, 'faune', { nomScientifique: 'Vulpes vulpes', nomCommun: 'Renard roux', groupe: 'Mammifères' })
+    await ajouterPhoto(racine, 'faune', 'vulpes-vulpes', 'a.jpg',
+      await sharp({ create: { width: 20, height: 20, channels: 3, background: '#fff' } }).jpeg().toBuffer())
+    const photo = async () => (await appeler('GET', '/api/especes')).corps[0].fiche.photos?.['a.jpg']
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes/photos/a.jpg', { corps: { lieu: 'Paris', legende: 'Mâle' }, origin })
+    expect(await photo()).toEqual({ lieu: 'Paris', legende: 'Mâle', position: [48.85, 2.35] })
+    await appeler('PATCH', '/api/especes/faune/vulpes-vulpes/photos/a.jpg', { corps: { lieu: '' }, origin })
+    expect(await photo()).toEqual({ legende: 'Mâle' })
   })
 
   it('une position saisie à la main l’emporte', async () => {

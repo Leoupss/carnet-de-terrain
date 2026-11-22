@@ -6,7 +6,7 @@ export const LIBELLES: Record<Categorie, string> = { faune: 'Faune', flore: 'Flo
 
 export const GROUPES: Record<Categorie, string[]> = {
   faune: ['Oiseaux', 'Insectes', 'Arachnides', 'Mammifères', 'Reptiles', 'Amphibiens', 'Poissons', 'Autres'],
-  flore: ['Fleurs', 'Plantes', 'Champignons', 'Autres'],
+  flore: ['Fleurs', 'Plantes', 'Arbres', 'Champignons', 'Autres'],
 }
 
 const CLASSES_FAUNE: Record<string, string> = {

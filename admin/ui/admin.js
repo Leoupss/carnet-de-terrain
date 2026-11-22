@@ -173,7 +173,7 @@ function fermerSuggestions() {
 function afficherSuggestions() {
   liste.replaceChildren(...suggestions.map((s, i) =>
     el('li', { role: 'option', id: `sugg-${i}`, 'aria-selected': String(i === actif), onmousedown: (e) => { e.preventDefault(); choisir(i) } },
-      el('span', {}, s.nomScientifique), el('span', { class: 'rang' }, s.rang.toLowerCase()))))
+      el('span', {}, s.nomScientifique, s.nomCommun ? el('em', {}, ` · ${s.nomCommun}`) : null), el('span', { class: 'rang' }, s.rang.toLowerCase()))))
   liste.hidden = suggestions.length === 0
   recherche.setAttribute('aria-expanded', String(!liste.hidden))
   if (actif >= 0) recherche.setAttribute('aria-activedescendant', `sugg-${actif}`)
@@ -266,10 +266,56 @@ function afficherApercus() {
       el('div', { class: 'nom' }, p.fichier.name),
       p.mois ? el('div', { class: 'nom' }, `Prise en ${moisAnnee(p.mois)}`) : null)))
 }
+/* Nom de fichier → nom d'espèce : « Vulpes_vulpes-012.jpg » ou « Martin-pêcheur 3.jpg ». */
+const normaliser = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim()
+const BRUIT = new Set(['img', 'dsc', 'dscn', 'dscf', 'mg', 'pxl', 'photo', 'copie', 'copy', 'edit', 'jpg', 'jpeg', 'final'])
+// Accents et tirets gardés : GBIF en a besoin pour les noms français (« Martin-pêcheur d'Europe »).
+const nomDepuisFichier = (nom) => nom.replace(/\.[^.]+$/, '').replace(/[_\d]+/g, ' ').split(/\s+/).filter((m) => m && !BRUIT.has(normaliser(m))).join(' ')
+
+/** Remplit l'espèce d'après le nom du fichier : d'abord dans mon catalogue (nom commun ou scientifique), sinon sur GBIF. */
+async function reconnaitreEspece(fichiers) {
+  if ($('#nomScientifique').value.trim() || recherche.value.trim()) return // ne jamais écraser une saisie
+  const noms = [...new Set(fichiers.map((f) => nomDepuisFichier(f.name)))].filter((n) => normaliser(n).length >= 3)
+  if (!noms.length) return
+  try {
+    const especes = await api('/especes')
+    for (const q of noms.map(normaliser)) {
+      // Le plus long nom contenu dans le nom du fichier (« merle noir male » → « merle noir »).
+      const trouvee = especes
+        .flatMap((x) => [x.fiche.nomCommun, x.fiche.nomScientifique].map((n) => ({ x, n: normaliser(n ?? '') })))
+        .filter(({ n }) => n && ` ${q} `.includes(` ${n} `))
+        .sort((a, b) => b.n.length - a.n.length)[0]
+      if (trouvee) return await choisirParNom(trouvee.x.fiche.nomScientifique, `« ${trouvee.x.fiche.nomCommun} », déjà dans ton catalogue`)
+    }
+    for (const q of noms) {
+      suggestions = await api(`/gbif/suggest?q=${enc(q)}`)
+      const nq = normaliser(q)
+      const i = suggestions.findIndex((s) => s.rang === 'SPECIES'
+        && (nq.startsWith(normaliser(s.nomScientifique)) || (s.nomCommun && normaliser(s.nomCommun) === nq)))
+      if (i >= 0) {
+        etatGbif.textContent = ''
+        await choisir(i)
+        return message(`Espèce reconnue d'après le nom du fichier : ${suggestions[i]?.nomScientifique ?? $('#nomScientifique').value} — vérifie-la.`, 'ok')
+      }
+    }
+    // Rien de sûr : on propose la recherche avec le nom du fichier, à choisir dans la liste.
+    recherche.value = noms[0]
+    recherche.dispatchEvent(new Event('input'))
+  } catch { /* GBIF ou catalogue indisponible : la saisie manuelle reste possible */ }
+}
+async function choisirParNom(nomScientifique, origine) {
+  suggestions = await api(`/gbif/suggest?q=${enc(nomScientifique)}`)
+  const i = suggestions.findIndex((s) => s.nomScientifique === nomScientifique)
+  if (i >= 0) await choisir(i)
+  else { recherche.value = $('#nomScientifique').value = nomScientifique; verifierExistant() }
+  message(`Espèce reconnue d'après le nom du fichier : ${origine}.`, 'ok')
+}
+
 async function ajouterFichiers(liste) {
   const nouvelles = [...liste].map((f) => ({ fichier: f, url: URL.createObjectURL(f), mois: '' }))
   photos.push(...nouvelles)
   afficherApercus()
+  reconnaitreEspece(nouvelles.map((p) => p.fichier))
   // Date de prise de vue lue tout de suite : elle pré-remplit la date d'observation si elle est vide.
   for (const p of nouvelles) p.mois = await moisDePriseDeVue(p.fichier)
   afficherApercus()
@@ -366,16 +412,43 @@ async function chargerCatalogue() {
   else { selection = null; $('#detail').hidden = true }
 }
 
+// Sélection en cours : type (faune / flore) puis groupe ('' = tous les groupes du type).
+let typeChoisi = 'faune', groupeChoisi = ''
+const LIBELLE_TYPE = { faune: 'Faune', flore: 'Flore' }
+
+function pastille(texte, n, actif, action) {
+  return el('button', { type: 'button', class: 'pastille-filtre', 'aria-pressed': String(actif), onclick: action },
+    texte, el('span', { class: 'compte' }, String(n)))
+}
+
+function ligneEspece(x) {
+  return el('li', {}, el('button', {
+    type: 'button', 'aria-current': String(selection?.slug === x.slug && selection?.categorie === x.categorie),
+    onclick: () => afficherDetail(x),
+  },
+    x.photos[0] ? el('img', { src: urlPhoto(x.categorie, x.slug, x.photos[0]), alt: '', loading: 'lazy' }) : el('span', { class: 'sans-miniature' }),
+    el('span', {}, x.fiche.nomCommun, el('br'), el('em', {}, `${x.fiche.nomScientifique} · ${x.photos.length} photo${x.photos.length > 1 ? 's' : ''}`))))
+}
+
 function afficherListe() {
+  // 1re ligne : Faune | Flore. 2e ligne : Tous | les groupes présents dans ce type (ordre de GROUPES).
+  const duType = catalogue.filter((x) => x.categorie === typeChoisi)
+  const groupes = [...GROUPES[typeChoisi] ?? [], ...new Set(duType.map((x) => x.fiche.groupe))].filter((g, i, t) => t.indexOf(g) === i)
+  const presents = groupes.filter((g) => duType.some((x) => x.fiche.groupe === g))
+  if (groupeChoisi && !presents.includes(groupeChoisi)) groupeChoisi = ''
+  remplacer($('#filtre-types'), ...Object.keys(LIBELLE_TYPE).map((t) =>
+    pastille(LIBELLE_TYPE[t], catalogue.filter((x) => x.categorie === t).length, t === typeChoisi,
+      () => { typeChoisi = t; groupeChoisi = ''; afficherListe() })))
+  remplacer($('#filtre-groupes'),
+    pastille('Tous', duType.length, groupeChoisi === '', () => { groupeChoisi = ''; afficherListe() }),
+    ...presents.map((g) => pastille(g, duType.filter((x) => x.fiche.groupe === g).length, g === groupeChoisi,
+      () => { groupeChoisi = g; afficherListe() })))
+
   const q = $('#filtre-catalogue').value.trim().toLowerCase()
-  const vus = catalogue.filter((x) => `${x.fiche.nomCommun} ${x.fiche.nomScientifique}`.toLowerCase().includes(q))
+  const vus = duType.filter((x) => (!groupeChoisi || x.fiche.groupe === groupeChoisi)
+    && `${x.fiche.nomCommun} ${x.fiche.nomScientifique}`.toLowerCase().includes(q))
   $('#liste').replaceChildren(...(vus.length
-    ? vus.map((x) => el('li', {}, el('button', {
-        type: 'button', 'aria-current': String(selection?.slug === x.slug && selection?.categorie === x.categorie),
-        onclick: () => afficherDetail(x),
-      },
-        x.photos[0] ? el('img', { src: urlPhoto(x.categorie, x.slug, x.photos[0]), alt: '', loading: 'lazy' }) : el('span', { class: 'sans-miniature' }),
-        el('span', {}, x.fiche.nomCommun, el('br'), el('em', {}, `${x.fiche.nomScientifique} · ${x.photos.length} photo${x.photos.length > 1 ? 's' : ''}`)))))
+    ? vus.map(ligneEspece)
     : [el('li', { class: 'vide' }, catalogue.length ? 'Aucune espèce trouvée.' : 'Catalogue vide — commence par « Ajouter ».')]))
 }
 $('#filtre-catalogue').addEventListener('input', afficherListe)

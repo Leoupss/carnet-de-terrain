@@ -32,8 +32,10 @@ const especes = defineCollection({
       legende: z.string().optional(),
       date: z.coerce.date().optional(),
       lieu: z.string().optional(),
+      position: z.tuple([z.number(), z.number()]).optional(),
     })).optional(),
     ordre: z.array(z.string()).optional(),
+    repartition: z.array(z.string()).optional(),
   }),
 })
 

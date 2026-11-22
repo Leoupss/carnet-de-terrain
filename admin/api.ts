@@ -8,6 +8,8 @@ import * as fichiers from './fichiers'
 import { suggerer, details } from './gbif'
 import { geocoder } from './geocodage'
 import { aideSaisie } from './wikipedia'
+import { repartition } from './repartition'
+import { zones } from './zones'
 import { resume, publier } from './publier'
 
 const UI = fileURLToPath(new URL('./ui/', import.meta.url))
@@ -155,6 +157,12 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
         const positionLieu = await geocoder(r.espece.fiche.lieu)
         if (positionLieu) r.espece.fiche = await fichiers.modifierFiche(racine, cat, r.espece.slug, { positionLieu })
       }
+      // Zones colorées sur le globe de la fiche ; GBIF injoignable : la fiche se crée quand même, sans répartition.
+      if (!r.existait && r.espece.fiche.gbifKey) {
+        const [pays, cases] = await Promise.all([repartition(r.espece.fiche.gbifKey), zones(r.espece.fiche.gbifKey)])
+        if (pays?.length) r.espece.fiche = await fichiers.modifierFiche(racine, cat, r.espece.slug, { repartition: pays })
+        if (cases?.length) await fichiers.ecrireZones(racine, cat, r.espece.slug, cases)
+      }
       return r
     }
 
@@ -194,7 +202,16 @@ export function creerMiddleware(opts: { racine: string; projet: string }) {
           const b = await lireJson(req)
           const texte = (v: unknown) => (typeof v === 'string' ? v.trim() : undefined)
           if (typeof b.coupDeCoeur === 'boolean') await fichiers.definirCoupDeCoeur(racine, cat, slug, r[4], b.coupDeCoeur)
-          return fichiers.modifierPhoto(racine, cat, slug, r[4], { legende: texte(b.legende), date: texte(b.date), lieu: texte(b.lieu) })
+          const lieu = texte(b.lieu)
+          const avant = (await fichiers.lireFicheEspece(racine, cat, slug)).photos?.[r[4]]
+          // Point du globe : recalculé quand le lieu de la photo change (lieu vidé : on reprend celui de l'espèce).
+          let position: [number, number] | undefined | '' = undefined
+          if (lieu === '') position = ''
+          else if (lieu && (lieu !== avant?.lieu || !avant?.position)) position = (await geocoder(lieu)) ?? ''
+          return fichiers.modifierPhoto(racine, cat, slug, r[4], {
+            legende: texte(b.legende), date: texte(b.date), lieu,
+            ...(position !== undefined ? { position: position as [number, number] } : {}),
+          })
         }
         if (r.length === 5 && m === 'GET') {
           const e = (await fichiers.listerEspeces(racine)).find((x) => x.categorie === cat && x.slug === slug)

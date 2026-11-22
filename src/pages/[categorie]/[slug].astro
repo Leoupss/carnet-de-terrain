@@ -1,7 +1,7 @@
 ---
 import { Image, getImage } from 'astro:assets'
-import { render } from 'astro:content'
 import Base from '../../layouts/Base.astro'
+import GlobeEspece from '../../components/GlobeEspece.astro'
 import { LIBELLES } from '../../lib/categories'
 import { slugify } from '../../lib/slug'
 import { getEspeces, type Espece } from '../../lib/catalogue'
@@ -14,10 +14,13 @@ export async function getStaticPaths() {
 const { espece } = Astro.props as { espece: Espece }
 const d = espece.data
 const alt = `${d.nomCommun} (${d.nomScientifique})`
-const { Content } = await render(espece.entree)
-const aDescription = Boolean(espece.entree.body?.trim())
-// Dates affichées au mois : « mai 2026 ».
+// Position publique d'une photo, arrondie à ~10 km pour protéger les espèces.
+const arrondir = (p?: [number, number]): [number, number] | null => (p ? [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10] : null)
 const formaterDate = (x?: Date) => x?.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) ?? ''
+const UICN: Record<string, string> = {
+  LC: 'Préoccupation mineure', NT: 'Quasi menacée', VU: 'Vulnérable', EN: 'En danger', CR: 'En danger critique',
+  EW: 'Éteinte à l’état sauvage', EX: 'Éteinte', DD: 'Données insuffisantes', NE: 'Non évaluée',
+}
 
 const SIZES = '(max-width: 960px) 100vw, 640px'
 // Par photo : ses images (grande + plein écran) et ses infos, à défaut celles de l'espèce.
@@ -31,6 +34,8 @@ const photos = await Promise.all(espece.photos.map(async (p) => {
     srcset: principale.srcSet.attribute,
     grande: pleinEcran.src,
     legende: infos?.legende ?? '',
+    // Lieu propre à la photo, sinon GPS puis lieu de l'espèce.
+    position: arrondir(infos?.position ?? d.coordonnees ?? d.positionLieu),
     lieu: infos?.lieu ?? d.lieu ?? '',
     date: formaterDate(infos?.date ?? d.dateObservation),
   }
@@ -38,12 +43,8 @@ const photos = await Promise.all(espece.photos.map(async (p) => {
 const [premiere] = photos
 const plusieurs = photos.length > 1
 
-const scientifiques = [
-  ['Taille', d.taille], ['Poids', d.poids], ['Habitat', d.habitat], ['Floraison', d.floraison], ['Régime', d.regime],
-].filter((l): l is [string, string] => Boolean(l[1]))
-const aObservation = photos.some((p) => p.lieu || p.date) || aDescription
 const lienGroupe = `/${espece.categorie}/?groupe=${encodeURIComponent(d.groupe)}`
-const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ src, srcset, grande, legende, lieu, date }))
+const donnees = photos.map(({ src, srcset, grande, legende }) => ({ src, srcset, grande, legende }))
 ---
 <Base titre={d.nomCommun} description={`${alt} — photographies de Léo LUCAS`}>
   <div class="conteneur fiche">
@@ -81,28 +82,16 @@ const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ 
         <h1 class="fiche-nom">{d.nomCommun}</h1>
         <p class="fiche-sci"><em>{d.nomScientifique}</em></p>
 
-        {(scientifiques.length > 0 || d.statutUicn) && <>
-          <div class="ornement" aria-hidden="true"></div>
-          <section>
-            <h2 class="fiche-section">Informations scientifiques</h2>
-            <dl class="fiche-meta">
-              {scientifiques.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
-              {d.statutUicn && <div><dt>Statut UICN</dt><dd><span class={`uicn uicn-${d.statutUicn.toLowerCase()}`}>{d.statutUicn}</span></dd></div>}
-            </dl>
-          </section>
-        </>}
+        {d.statutUicn && (
+          <p class="fiche-uicn">
+            <span class="fiche-uicn-titre">Statut UICN</span>
+            <span class={`uicn uicn-${d.statutUicn.toLowerCase()}`}>{d.statutUicn}</span>
+            <span class="fiche-uicn-libelle">{UICN[d.statutUicn]}</span>
+          </p>
+        )}
 
-        {aObservation && <>
-          <div class="ornement" aria-hidden="true"></div>
-          <section aria-live="polite">
-            <h2 class="fiche-section">Mon observation</h2>
-            <dl class="fiche-meta">
-              <div data-champ="lieu" hidden={!premiere.lieu}><dt>Lieu</dt><dd>{premiere.lieu}</dd></div>
-              <div data-champ="date" hidden={!premiere.date}><dt>Date</dt><dd>{premiere.date}</dd></div>
-            </dl>
-            {aDescription && <div class="fiche-description"><Content /></div>}
-          </section>
-        </>}
+        <GlobeEspece zones={espece.zones} repartition={d.repartition ?? []}
+                     points={photos.map(({ position, lieu, date }) => ({ position, lieu, date }))} />
       </div>
     </div>
   </div>
@@ -118,7 +107,7 @@ const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ 
 </Base>
 
 <script>
-  type DonneesPhoto = { src: string; srcset: string; grande: string; legende: string; lieu: string; date: string }
+  type DonneesPhoto = { src: string; srcset: string; grande: string; legende: string }
   const zone = document.querySelector<HTMLElement>('.fiche-photos')!
   const photos: DonneesPhoto[] = JSON.parse(zone.dataset.photos ?? '[]')
   const principale = zone.querySelector<HTMLButtonElement>('.photo-principale')!
@@ -130,7 +119,7 @@ const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ 
   let courante = 0
   let enGrand = 0
 
-  // Vignette → grande photo, et les infos de l'observation suivent la photo.
+  // Vignette → grande photo ; la légende et le point du globe suivent la photo.
   function afficher(i: number) {
     courante = i
     const p = photos[i]
@@ -138,15 +127,13 @@ const donnees = photos.map(({ src, srcset, grande, legende, lieu, date }) => ({ 
     imgPrincipale.src = p.src
     legende.textContent = p.legende
     legende.hidden = !p.legende
-    for (const champ of ['lieu', 'date'] as const) {
-      const ligne = document.querySelector<HTMLElement>(`[data-champ="${champ}"]`)
-      if (!ligne) continue
-      ligne.querySelector('dd')!.textContent = p[champ]
-      ligne.hidden = !p[champ]
-    }
+    // Le globe déplace son point sur le lieu de cette photo.
+    document.dispatchEvent(new CustomEvent('photo-affichee', { detail: i }))
     vignettes.forEach((v, j) => v.setAttribute('aria-pressed', String(j === i)))
   }
   vignettes.forEach((v, i) => v.addEventListener('click', () => afficher(i)))
+  // Clic sur un point du globe : on affiche la photo prise à cet endroit.
+  document.addEventListener('globe-choisir', (e) => afficher((e as CustomEvent<number>).detail))
 
   function montrer(i: number) {
     enGrand = (i + photos.length) % photos.length

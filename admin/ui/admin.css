@@ -124,3 +124,12 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 dialog h2 { margin-bottom: .75rem; }
 #resume ul { list-style: none; max-height: 40vh; overflow: auto; font-size: .9rem; }
 #resume li span { display: inline-block; min-width: 5.5rem; color: var(--text-muted); }
+
+/* Catalogue : Faune | Flore, puis les groupes du type, en rangées de pastilles */
+.barre-filtres { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.25rem; margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--cream-dark); }
+.rangee-filtres { display: flex; flex-wrap: wrap; gap: .35rem; }
+#filtre-types { padding-right: 1.25rem; border-right: 1px solid var(--cream-dark); }
+.pastille-filtre { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .7rem; border-radius: 999px; font-size: .85rem; background: #fff; }
+.pastille-filtre[aria-pressed="true"] { background: var(--green-forest); border-color: var(--green-forest); color: #fff; }
+#filtre-types .pastille-filtre { font-weight: 600; padding: .35rem .9rem; }
+.pastille-filtre .compte { font-size: .75rem; opacity: .7; }
