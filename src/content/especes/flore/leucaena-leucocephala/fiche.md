@@ -1,6 +1,6 @@
 ---
 nomCommun: Leucaena
-groupe: Fleurs
+groupe: Arbres
 dateObservation: 2026-07
 taille: Elles sont composées de 3 à 7 paires de pennes opposées paripennées de 4
   à 8 cm de long ayant 10 à 20 paires de foliolules linéaires-oblongues à sommet

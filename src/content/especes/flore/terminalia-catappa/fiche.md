@@ -1,7 +1,7 @@
 ---
 nomScientifique: Terminalia catappa
 nomCommun: Badamier
-groupe: Fleurs
+groupe: Arbres
 gbifKey: 3189394
 lieu: Bang Kachao, Bangkok
 dateObservation: 2026-05-30

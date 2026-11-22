@@ -1,6 +1,6 @@
 ---
 nomCommun: Arbre à la pluie
-groupe: Fleurs
+groupe: Arbres
 lieu: Bang Kachao, Thaïlande
 dateObservation: 2026-07
 taille: Elles mesurent 25 à 40 centimètres de long avec des tiges finement poilues.
