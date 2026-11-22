@@ -20,4 +20,22 @@ photos:
     legende: Femelle
   gobemouche-taiga.webp:
     legende: Femelle
+repartition:
+  - "050"
+  - "064"
+  - "096"
+  - "104"
+  - "116"
+  - "156"
+  - "344"
+  - "356"
+  - "360"
+  - "418"
+  - "446"
+  - "458"
+  - "524"
+  - "702"
+  - "704"
+  - "764"
+  - "840"
 ---

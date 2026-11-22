@@ -17,7 +17,22 @@ photos:
   img-1778.jpg:
     date: 2026-07
     lieu: Bang Pu, Thaïlande
+    position: &a1
+      - 13.52172
+      - 100.6546
   img-1790.jpg:
     date: 2026-07
     lieu: Bang Pu, Thaïlande
+    position: *a1
+repartition:
+  - "050"
+  - "104"
+  - "156"
+  - "356"
+  - "360"
+  - "392"
+  - "458"
+  - "702"
+  - "704"
+  - "764"
 ---

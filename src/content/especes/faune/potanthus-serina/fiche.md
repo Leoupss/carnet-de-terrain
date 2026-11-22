@@ -13,4 +13,7 @@ dateObservation: 2026-07-05
 photos:
   img-1298.jpg:
     date: 2026-07-05
+repartition:
+  - "458"
+  - "702"
 ---

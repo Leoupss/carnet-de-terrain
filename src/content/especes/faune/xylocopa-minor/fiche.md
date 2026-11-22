@@ -14,4 +14,11 @@ ajoute: 2026-10-31
 photos:
   img-1031.jpg:
     date: 2026-07
+repartition:
+  - "116"
+  - "418"
+  - "704"
+  - "756"
+  - "764"
+lieu: Bang Kachao, Bangkok, Thaïlande
 ---

@@ -15,4 +15,10 @@ positionLieu:
 photos:
   img-1169.jpg:
     date: 2026-07
+repartition:
+  - "360"
+  - "458"
+  - "608"
+  - "702"
+  - "764"
 ---
