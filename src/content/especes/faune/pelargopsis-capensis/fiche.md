@@ -20,6 +20,18 @@ photos:
     position:
       - 13.75249
       - 100.49351
+  dsc02242.jpg:
+    date: 2026-10
+    lieu: Bangkok, Thailande
+    position:
+      - 13.75249
+      - 100.49351
+  dsc02341.jpg:
+    date: 2026-10
+    lieu: Bangkok, Thailande
+    position:
+      - 13.75249
+      - 100.49351
 repartition:
   - "050"
   - "064"
